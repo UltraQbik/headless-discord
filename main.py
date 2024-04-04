@@ -1,6 +1,7 @@
 import json
 import asyncio
 import argparse
+import websockets
 
 
 parser = argparse.ArgumentParser(
@@ -14,8 +15,8 @@ args = parser.parse_args()
 class Client:
     def __init__(self):
         self._auth_token: str | None = None
-        self._socket: None = None
-        self._hb_interval = None
+        self._socket: websockets.WebSocketClientProtocol | None = None
+        self._heartbeat_interval = None
 
     def run(self, token: str) -> None:
         """
@@ -23,6 +24,13 @@ class Client:
         """
 
         self._auth_token = token
+
+        async def coro():
+            async with websockets.connect("wss://gateway.discord.gg/?v=10&encoding=json") as websocket:
+                self._socket = websocket
+
+                print(await self.get_request())
+        asyncio.run(coro())
 
     async def send_request(self, request: object) -> None:
         """
@@ -36,7 +44,9 @@ class Client:
         Gets request from connected socket
         """
 
-        pass
+        response = await self._socket.recv()
+        if response:
+            return json.loads(response)
 
 
 def main():

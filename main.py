@@ -1,9 +1,12 @@
 import json
 import asyncio
 import argparse
+import re
+
 import websockets
 from typing import Any
 from random import random
+from datetime import datetime
 
 
 parser = argparse.ArgumentParser(
@@ -61,11 +64,19 @@ class Client:
                     }
                 )
 
+                print("Connection successful.\n")
                 await asyncio.gather(
                     self.process_heartbeat(),
                     self.process_input())
 
-        asyncio.run(coro())
+        print("Attempting connect...")
+        try:
+            asyncio.run(coro())
+        except KeyboardInterrupt:
+            pass
+        except OSError:
+            print("\nConnection failed!")
+        print("Connection closed.")
 
     async def process_input(self) -> None:
         """
@@ -75,7 +86,32 @@ class Client:
         while True:
             response = await self.get_request()
             self._sequence = response["s"]
-            print(response)
+
+            if response["t"] == "MESSAGE_CREATE":
+                print(self.message(response))
+
+    @staticmethod
+    def message(response: dict):
+        """
+        Processes the message
+        """
+
+        message_timestamp = datetime.fromisoformat(response["d"]["timestamp"])
+        message_author = response["d"]["author"]
+        message_content = response["d"]["content"]
+
+        if response["d"]["mentions"]:
+            mentions = re.findall(r"<(.*?)>", message_content)
+            for mention_id in mentions:
+                mention_username = None
+                for user in response["d"]["mentions"]:
+                    if user["id"] == mention_id:
+                        mention_username = user["username"]
+                        break
+
+                message_content = message_content.replace(f"<@{mention_id}>", mention_username)
+
+        return f"[{message_timestamp.strftime('%H:%M:%S')}] {message_author['username']}> {message_content}"
 
     async def process_heartbeat(self) -> None:
         """

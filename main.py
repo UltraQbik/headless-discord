@@ -1,3 +1,4 @@
+import os
 import re
 import json
 import asyncio
@@ -7,6 +8,10 @@ from typing import Any
 from random import random
 from datetime import datetime
 
+
+# initialize ANSI escape codes
+# without this, they don't work
+os.system("")
 
 parser = argparse.ArgumentParser(
     prog="HeadlessDiscord",
@@ -41,6 +46,10 @@ class User:
 
         # guild data
         self.member: Member | None = Member(**(kwargs["member"])) if "member" in kwargs else None
+
+        # fix annoying nickname thing
+        if self.member and self.member.nick is None:
+            self.member.nick = self.username
 
     @staticmethod
     def from_response(response: dict):
@@ -85,6 +94,20 @@ class Message:
         # guild data
         self.guild_id: str | None = kwargs.get("guild_id")
 
+        # clean content up
+        content_mentions = re.findall(r"<(.*?)>", self.content)
+        for content_mention in content_mentions:
+            for mention in self.mentions:
+                if content_mention[1:] == mention.id:
+                    username = mention.member.nick if mention.member else mention.username
+                    username = f"\33[36m@{username}\33[0m"
+
+                    # if user mentioned is the client
+                    if mention.id == Client.user.id:
+                        username = "\33[1;36m" + username + "\33[0m"
+
+                    self.content = self.content.replace(f"<{content_mention}>", username)
+
     @staticmethod
     def from_response(response: dict):
         """
@@ -95,9 +118,9 @@ class Message:
         return Message(**response)
 
     def __str__(self):
-        if self.guild_id:
-            return f"[{self.timestamp.strftime('%H:%M:%S')}] {self.author.member.nick}> {self.content}"
-        return f"[{self.timestamp.strftime('%H:%M:%S')}] {self.author.username}> {self.content}"
+        timestamp = self.timestamp.strftime('%H:%M:%S')
+        username = self.author.member.nick if self.guild_id else self.author.username
+        return f"\33[90m[{timestamp}]\33[0m {username}> {self.content}"
 
 
 class Channel:
@@ -124,12 +147,12 @@ class Guild:
 
 
 class Client:
+    user: User | None = None
+    guilds: list[Guild] | None = None
+
     def __init__(self):
         self._auth_token: str | None = None
         self._socket: websockets.WebSocketClientProtocol | None = None
-
-        self.user: User | None = None
-        self.guilds: list[Guild] | None = None
 
         self._heartbeat_interval = None
         self._sequence = None
@@ -198,12 +221,13 @@ class Client:
 
             # ready
             if response["t"] == "READY":
-                self.user = User(**(response["d"]["user"]))
-                self.guilds = [Guild(**x) for x in response["d"]["guilds"]]
+                Client.user = User(**(response["d"]["user"]))
+                Client.guilds = [Guild(**x) for x in response["d"]["guilds"]]
 
             # messages
             elif response["t"] == "MESSAGE_CREATE":
                 message = Message.from_response(response["d"])
+                print(message)
 
             # opcode 1
             elif response["op"] == 1:

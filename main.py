@@ -15,41 +15,62 @@ parser.add_argument("auth", help="authentication token (your discord token)")
 args = parser.parse_args()
 
 
-class User:
+class Member:
     """
-    User class
+    Guild member class
     """
 
     def __init__(self, **kwargs):
-        # general info
-        self.id: str = kwargs.get('id')
-        self.name: str = kwargs.get('name')
+        self.guild_id: str | None = kwargs.get("guild_id")
+        self.nick: str | None = kwargs.get("nick")
+        self.mute: bool | None = kwargs.get("mute")
+        self.deaf: bool | None = kwargs.get("deaf")
+        self.joined_at: datetime = datetime.fromisoformat(kwargs.get("joined_at")) if "joined_at" in kwargs else None
+        self.roles: list[str] | None = kwargs.get("roles")
 
-        # guild member
-        self.nick: str = kwargs.get('nick')
-        self.roles: list[str] = kwargs.get('roles')
-        self.muted: bool = kwargs.get('muted')
-        self.deafen: bool = kwargs.get('deafen')
-        self.joined_at: datetime = datetime.fromisoformat(kwargs['joined_at']) if kwargs.get('joined_at') else None
+
+class User:
+    """
+    Broad user class
+    """
+
+    def __init__(self, **kwargs):
+        # general data
+        self.id: str | None = kwargs.get("id")
+        self.username: str | None = kwargs.get("username")
+
+        # guild data
+        self.member: Member | None = Member(**(kwargs["member"])) if "member" in kwargs else None
+
+    @property
+    def nickname(self) -> str:
+        """
+        Returns member's nickname. If user is not a guild member, falls back to username
+        """
+
+        if self.member and self.member.nick:
+            return self.member.nick
+        return self.username
 
     @staticmethod
-    def from_mention(response: dict):
+    def from_response(response: dict):
         """
-        Creates user instance from response
+        Generates user instance from discord response
         :return: User
         """
 
-        user = User(
-            id=response['id'],
-            name=response['username'])
-        if response['member']:
-            user.roles = response['member']['roles']
-            user.nick = response['member']['nick']
-            user.joined_at = response['member']['joined_at']
-            user.muted = response['member']['mute']
-            user.deafen = response['member']['deaf']
+        return User(
+            **(response["author"]),
+            member=response.get("member", {}))
 
-        return user
+    @staticmethod
+    def from_response_mention(mention: dict):
+        """
+        Generates user instance from discord mention response
+        :return: User
+        """
+
+        return User(**mention)
 
 
 class Message:
@@ -58,44 +79,30 @@ class Message:
     """
 
     def __init__(self, **kwargs):
-        self.id: str = kwargs.get('id')
-        self.guild_id: str = kwargs.get('guild_id')
-        self.channel_id: str = kwargs.get('channel_id')
-        self.timestamp: datetime = datetime.fromisoformat(kwargs.get('timestamp')) if kwargs.get('timestamp') else None
-        self.reference: int = kwargs.get('reference')
-        self.content: str = kwargs.get('content')
-        self.mentions: list[User] = kwargs.get('mentions')
-        self.author: User = kwargs.get('author')
+        # general data
+        self.id: str | None = kwargs.get("id")
+        self.channel_id: str | None = kwargs.get("channel_id")
+        self.timestamp: datetime | None = datetime.fromisoformat(
+            kwargs.get("timestamp")) if "timestamp" in kwargs else None
+        self.author: User | None = User.from_response(kwargs)
+        self.mentions: list[User] | None = [
+            User.from_response_mention(x) for x in kwargs.get("mentions", [])]
+        self.content = kwargs.get("content")
+
+        # guild data
+        self.guild_id: str | None = kwargs.get("guild_id")
 
     @staticmethod
     def from_response(response: dict):
         """
-        Creates message instance from discord response
+        Generates message instance from discord response
         :return: Message
         """
 
-        author = User(
-            id=response['author']['id'],
-            name=response['author']['username'],
-            nick=response['member']['nick'],
-            roles=response['member']['roles'],
-            joined_at=response['member']['joined_at'],
-            muted=response['member']['mute'],
-            deafen=response['member']['deaf']
-        )
-
-        return Message(
-            id=response['id'],
-            guild_id=response['guild_id'],
-            channel_id=response['channel_id'],
-            timestamp=response['timestamp'],
-            reference=response['referenced_message'],
-            content=response['content'],
-            author=author
-        )
+        return Message(**response)
 
     def __str__(self):
-        return f"[{self.timestamp.strftime('%H:%M:%S')}] {self.author.nick}> {self.content}"
+        return f"[{self.timestamp.strftime('%H:%M:%S')}] {self.author.nickname}> {self.content}"
 
 
 class Client:
@@ -169,11 +176,11 @@ class Client:
             self._sequence = response["s"]
 
             if response["t"] == "MESSAGE_CREATE":
+                # with open("dump.json", "a", encoding='utf8') as file:
+                #     file.write(json.dumps(response, indent=2) + '\n\n')
+
                 message = Message.from_response(response['d'])
                 print(message)
-
-                with open("dump.json", "a", encoding='utf8') as file:
-                    file.write(json.dumps(response, indent=2) + '\n\n')
 
     @staticmethod
     def message(response: dict):

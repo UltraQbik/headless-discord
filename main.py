@@ -49,9 +49,13 @@ class User:
         :return: User
         """
 
-        return User(
+        user = User(
             **(response["author"]),
             member=response.get("member", {}))
+        if "guild_id" in response:
+            user.member.guild_id = response["guild_id"]
+
+        return user
 
     @staticmethod
     def from_response_mention(mention: dict):
@@ -181,7 +185,7 @@ class Client:
             pass
         except OSError:
             print("\nConnection failed!")
-        print("Connection closed.")
+        print("\nConnection closed.")
 
     async def process_input(self) -> None:
         """

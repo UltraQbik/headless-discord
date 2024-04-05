@@ -214,29 +214,6 @@ class Client:
                 with open("big.json", "a", encoding="utf8") as file:
                     file.write(json.dumps(response, indent=2) + "\n\n")
 
-    @staticmethod
-    def message(response: dict):
-        """
-        Processes the message
-        """
-
-        message_timestamp = datetime.fromisoformat(response["d"]["timestamp"])
-        message_author = response["d"]["author"]
-        message_content = response["d"]["content"]
-
-        if response["d"]["mentions"]:
-            mentions = re.findall(r"<(.*?)>", message_content)
-            for mention_id in mentions:
-                mention_username = None
-                for user in response["d"]["mentions"]:
-                    if user["id"] == mention_id:
-                        mention_username = user["username"]
-                        break
-
-                message_content = message_content.replace(f"<@{mention_id}>", mention_username)
-
-        return f"[{message_timestamp.strftime('%H:%M:%S')}] {message_author['username']}> {message_content}"
-
     async def process_heartbeat(self) -> None:
         """
         Sends heartbeat event to opened gateway, to notify it that the app is running.

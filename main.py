@@ -42,16 +42,6 @@ class User:
         # guild data
         self.member: Member | None = Member(**(kwargs["member"])) if "member" in kwargs else None
 
-    @property
-    def nickname(self) -> str:
-        """
-        Returns member's nickname. If user is not a guild member, falls back to username
-        """
-
-        if self.member and self.member.nick:
-            return self.member.nick
-        return self.username
-
     @staticmethod
     def from_response(response: dict):
         """
@@ -85,9 +75,8 @@ class Message:
         self.timestamp: datetime | None = datetime.fromisoformat(
             kwargs.get("timestamp")) if "timestamp" in kwargs else None
         self.author: User | None = User.from_response(kwargs)
-        self.mentions: list[User] | None = [
-            User.from_response_mention(x) for x in kwargs.get("mentions", [])]
-        self.content = kwargs.get("content")
+        self.mentions: list[User] = [User.from_response_mention(x) for x in kwargs["mentions"]]
+        self.content: str = kwargs.get("content")
 
         # guild data
         self.guild_id: str | None = kwargs.get("guild_id")
@@ -102,13 +91,41 @@ class Message:
         return Message(**response)
 
     def __str__(self):
-        return f"[{self.timestamp.strftime('%H:%M:%S')}] {self.author.nickname}> {self.content}"
+        if self.guild_id:
+            return f"[{self.timestamp.strftime('%H:%M:%S')}] {self.author.member.nick}> {self.content}"
+        return f"[{self.timestamp.strftime('%H:%M:%S')}] {self.author.username}> {self.content}"
+
+
+class Channel:
+    """
+    Channel class
+    """
+
+    def __init__(self, **kwargs):
+        self.id: str = kwargs.get("id")
+        self.name: str = kwargs.get("name")
+        self.nsfw: bool = kwargs.get("nsfw")
+
+
+class Guild:
+    """
+    Guild class
+    """
+
+    def __init__(self, **kwargs):
+        self.id: str = kwargs.get("id")
+        self.channels: list[Channel] = [Channel(**x) for x in kwargs["channels"]]
+        self.member_count: int = kwargs.get("member_count")
+        # TODO: add threads
 
 
 class Client:
     def __init__(self):
         self._auth_token: str | None = None
         self._socket: websockets.WebSocketClientProtocol | None = None
+
+        self.user: User | None = None
+        self.guilds: list[Guild] | None = None
 
         self._heartbeat_interval = None
         self._sequence = None
@@ -175,12 +192,23 @@ class Client:
             response = await self.get_request()
             self._sequence = response["s"]
 
-            if response["t"] == "MESSAGE_CREATE":
-                # with open("dump.json", "a", encoding='utf8') as file:
-                #     file.write(json.dumps(response, indent=2) + '\n\n')
+            # ready
+            if response["t"] == "READY":
+                self.user = User(**(response["d"]["user"]))
+                self.guilds = [Guild(**x) for x in response["d"]["guilds"]]
 
-                message = Message.from_response(response['d'])
-                print(message)
+            # messages
+            elif response["t"] == "MESSAGE_CREATE":
+                message = Message.from_response(response["d"])
+
+            # opcode 1
+            elif response["op"] == 1:
+                await self.send_heartbeat()
+
+            # anything else
+            else:
+                with open("big.json", "a", encoding="utf8") as file:
+                    file.write(json.dumps(response, indent=2) + "\n\n")
 
     @staticmethod
     def message(response: dict):
@@ -214,12 +242,19 @@ class Client:
         # send heartbeat
         # wait `heartbeat_interval * jitter` as per discord docs
         await asyncio.sleep(self._heartbeat_interval * random() / 1000)
-        await self.send_request({"op": 1, "d": None})
+        await self.send_heartbeat()
 
         # continue the heartbeat
         while self._socket.open:
             await asyncio.sleep(self._heartbeat_interval)
-            await self.send_request({"op": 1, "d": self._sequence})
+            await self.send_heartbeat()
+
+    async def send_heartbeat(self) -> None:
+        """
+        Sends heartbeat request to the gateway
+        """
+
+        await self.send_request({"op": 1, "d": self._sequence})
 
     async def send_request(self, request: Any) -> None:
         """

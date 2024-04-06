@@ -347,12 +347,12 @@ class Terminal:
         new_content = ""
         for char in content:
             new_content += char
+            line_length += 1
             if char == "\n":
                 line_length = 0
-            else:
-                line_length += 1
             if line_length >= 120:
                 new_content += "\n"
+                line_length = 0
         return new_content
 
     @staticmethod

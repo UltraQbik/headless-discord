@@ -337,7 +337,7 @@ class Terminal:
         self.cur_line: int = 0
 
     @staticmethod
-    def character_wrap(content: str) -> str:
+    def character_wrap(content: str, max_len: int = 100) -> str:
         """
         Character wraps the content
         :return: word wrapped content
@@ -345,12 +345,15 @@ class Terminal:
 
         line_length = 0
         new_content = ""
-        for char in content:
+        for idx, char in enumerate(content):
             new_content += char
             line_length += 1
             if char == "\n":
                 line_length = 0
-            if line_length >= 120:
+
+            # add `\n` when 1 line is bigger than max_len,
+            # and it's not the last character in the string
+            if line_length >= max_len and idx != (len(content)-1):
                 new_content += "\n"
                 line_length = 0
         return new_content
@@ -373,9 +376,9 @@ class Terminal:
         timestamp = message.timestamp.strftime("%H:%M:%S")
         nickname = message.author.nickname
 
-        newline_offset = '-' * (len(timestamp) + len(nickname) + 3)
-        content = self.character_wrap(message.content)
-        content = content.replace("\n", f"\n{STYLE_DARKEN}{newline_offset}>{CS_RESET} ")
+        newline_offset = len(timestamp) + len(nickname) + 3
+        content = self.character_wrap(message.content, 120 - newline_offset - 2)
+        content = content.replace("\n", f"\n{STYLE_DARKEN}{'-'*newline_offset}>{CS_RESET} ")
 
         return f"{STYLE_DARKEN}[{timestamp}]{CS_RESET} {nickname}> {content}"
 

@@ -244,7 +244,7 @@ class Client:
                 )
 
                 print("Connection successful.\n")
-                self._terminal.prepare_terminal()
+                self._terminal.clear_terminal()
                 await asyncio.gather(
                     self.process_heartbeat(),
                     self.process_input())
@@ -274,7 +274,8 @@ class Client:
 
             # messages
             elif response["t"] == "MESSAGE_CREATE":
-                self._terminal.update_message(Message.from_response(response["d"]))
+                self._terminal.messages.append(Message.from_response(response["d"]))
+                self._terminal.update_messages()
 
             # opcode 1
             elif response["op"] == 1:
@@ -330,7 +331,7 @@ class Terminal:
     Terminal rendering class
     """
 
-    terminal_lines = 28  # maximum amount of lines we can use
+    terminal_lines = 29  # maximum amount of lines we can use
 
     def __init__(self):
         self.messages: list[Message] = []
@@ -360,15 +361,16 @@ class Terminal:
                 line_length = 0
         return new_content
 
-    @staticmethod
-    def prepare_terminal() -> None:
+    def clear_terminal(self) -> None:
         """
         Prepares terminal
         """
 
-        print(f"\33[2J\33[28;0H", end="")
-        print(f"\33[100m{'='*120}{CS_RESET}\n[MESSAGE]: ", end="")
+        print(f"\33[2J\33[{self.terminal_lines};0H", end="")
+        print(f"\33[100m{'='*120}{CS_RESET}\n[TYPE]: ", end="")
         print("\33[H", end="")
+
+        self.cur_line = 0
 
     def format_message(self, message: Message) -> str:
         """
@@ -390,8 +392,8 @@ class Terminal:
         """
 
         if len(self.messages) > amount:
+            self.line_offset -= len(self.messages) - amount
             self.messages = self.messages[:-amount]
-            self._write_messages()
 
     def _write_messages(self):
         """
@@ -408,14 +410,20 @@ class Terminal:
         """
 
         self.truncate_buffer()
+        self._write_messages()
+        self.clear_terminal()
 
-    def update_message(self, message: Message):
+        self.line_offset = len(self.lines) - self.terminal_lines - 1
+        self.cur_line = 0
+
+        self.update_messages()
+
+    def update_messages(self):
         """
         Updates terminal with new message
         """
 
-        self.messages.append(message)
-        self.lines += self.format_message(message).split("\n")
+        self.lines += self.format_message(self.messages[-1]).split("\n")
 
         start = self.line_offset + self.cur_line
         end = min(start + self.terminal_lines, len(self.lines)-1) + 1
@@ -424,7 +432,7 @@ class Terminal:
         if self.cur_line >= self.terminal_lines:
             end -= self.cur_line - self.terminal_lines + 1
 
-        print("\n".join(self.lines[start:end]), end="\n" if end - start > 0 else "")
+        print("\n".join(self.lines[start:end]), end="\n" if self.cur_line < self.terminal_lines else "")
 
 
 def main():

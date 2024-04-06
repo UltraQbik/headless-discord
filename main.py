@@ -331,14 +331,27 @@ class Terminal:
             content
         )
 
+    def truncate_buffer(self, amount=100) -> None:
+        """
+        Truncates message buffer (when needed), to just not waste ram
+        """
+
+        if len(self.messages) > amount:
+            self.messages = self.messages[:-amount]
+
     def update_messages(self) -> None:
         """
         Re-prints all the messages to the terminal
         """
 
         self.printed = -1
+        self.truncate_buffer()
         self.clear_and_home()
-        for message in self.messages:
+        if len(self.messages) > 28:
+            snippet = self.messages[:-28]
+        else:
+            snippet = self.messages
+        for message in snippet:
             self.print_message(message)
             self.printed += 1
 
@@ -347,12 +360,13 @@ class Terminal:
         Only prints new messages
         """
 
+        self.truncate_buffer()  # IDK if this is good or not
         for message in self.messages[self.printed:]:
             self.print_message(message)
             self.printed += 1
 
             # next page
-            if self.printed >= 28:
+            if self.printed > 28:
                 self.clear_and_home()
 
 

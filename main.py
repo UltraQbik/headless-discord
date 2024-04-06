@@ -12,6 +12,7 @@ from datetime import datetime
 # pings
 PING_HIGHLIGHT = "\33[36m"
 PING_ME_HIGHLIGHT = "\33[1;36m"
+STYLE_DARKEN = "\33[90m"
 CODE_BLOCK = "\33[2m"
 
 # styles
@@ -58,6 +59,7 @@ class User:
         # general data
         self.id: str | None = kwargs.get("id")
         self.username: str | None = kwargs.get("username")
+        self.global_name: str | None = kwargs.get("global_name")
 
         # guild data
         self.member: Member | None = Member(**(kwargs["member"])) if "member" in kwargs else None
@@ -65,6 +67,18 @@ class User:
         # fix annoying nickname thing
         if self.member and self.member.nick is None:
             self.member.nick = self.username
+
+    @property
+    def nickname(self) -> str:
+        """
+        Returns user's guild name, if present, otherwise global_name, otherwise username
+        """
+
+        if self.member is not None:
+            return self.member.nick
+        elif self.global_name is not None:
+            return self.global_name
+        return self.username
 
     @staticmethod
     def from_response(response: dict):
@@ -230,7 +244,7 @@ class Client:
                 )
 
                 print("Connection successful.\n")
-                self._terminal.clear_and_home()
+                self._terminal.prepare_terminal()
                 await asyncio.gather(
                     self.process_heartbeat(),
                     self.process_input())
@@ -260,8 +274,7 @@ class Client:
 
             # messages
             elif response["t"] == "MESSAGE_CREATE":
-                self._terminal.messages.append(Message.from_response(response["d"]))
-                self._terminal.update_last()
+                self._terminal.update_message(Message.from_response(response["d"]))
 
             # opcode 1
             elif response["op"] == 1:
@@ -319,69 +332,91 @@ class Terminal:
 
     def __init__(self):
         self.messages: list[Message] = []
-        self.printed: int = 0
+        self.lines: list[str] = []
+        self.line_offset: int = 0
+        self.cur_line: int = 0
 
     @staticmethod
-    def clear_and_home() -> None:
+    def character_wrap(content: str) -> str:
         """
-        Clears the terminal, and returns the cursor
+        Character wraps the content
+        :return: word wrapped content
         """
 
-        print(f"\33[2J\33[H", end="")
+        line_length = 0
+        new_content = ""
+        for char in content:
+            new_content += char
+            if char == "\n":
+                line_length = 0
+            else:
+                line_length += 1
+            if line_length >= 120:
+                new_content += "\n"
+        return new_content
 
     @staticmethod
-    def print_message(message: Message) -> None:
+    def prepare_terminal() -> None:
         """
-        Prints out 1 message
+        Prepares terminal
         """
 
-        timestamp = message.timestamp.strftime("[%H:%M:%S]")
-        username = message.author.member.nick if message.guild_id else message.author.username
-        newline_offset = ' ' * (len(timestamp) + len(username) + 3)
-        content = message.content.replace("\n", f"\n{newline_offset}")
-        print(
-            "\33[90m" + timestamp + "\33[0m",
-            username + ">",
-            content
-        )
+        print(f"\33[2J\33[28;0H", end="")
+        print(f"\33[100m{'='*120}{CS_RESET}\n[MESSAGE]: ", end="")
+        print("\33[H", end="")
 
-    def truncate_buffer(self, amount=100) -> None:
+    def format_message(self, message: Message) -> str:
+        """
+        Returns terminal formatted message
+        """
+
+        timestamp = message.timestamp.strftime("%H:%M:%S")
+        nickname = message.author.nickname
+
+        newline_offset = '-' * (len(timestamp) + len(nickname) + 3)
+        content = self.character_wrap(message.content)
+        content = content.replace("\n", f"\n{STYLE_DARKEN}{newline_offset}>{CS_RESET} ")
+
+        return f"{STYLE_DARKEN}[{timestamp}]{CS_RESET} {nickname}> {content}"
+
+    def truncate_buffer(self, amount=50) -> None:
         """
         Truncates message buffer (when needed), to just not waste ram
         """
 
         if len(self.messages) > amount:
             self.messages = self.messages[:-amount]
+            self._write_messages()
 
-    def update_messages(self) -> None:
+    def _write_messages(self):
+        """
+        Rewrites all messages to lines
+        """
+
+        self.lines.clear()
+        for message in self.messages:
+            self.lines += self.format_message(message).split("\n")
+
+    def update_all(self) -> None:
         """
         Re-prints all the messages to the terminal
         """
 
-        self.printed = -1
         self.truncate_buffer()
-        self.clear_and_home()
-        if len(self.messages) > 28:
-            snippet = self.messages[:-28]
-        else:
-            snippet = self.messages
-        for message in snippet:
-            self.print_message(message)
-            self.printed += 1
 
-    def update_last(self) -> None:
+    def update_message(self, message: Message):
         """
-        Only prints new messages
+        Updates terminal with new message
         """
 
-        self.truncate_buffer()  # IDK if this is good or not
-        for message in self.messages[self.printed:]:
-            self.print_message(message)
-            self.printed += 1
+        self.messages.append(message)
+        self.lines += self.format_message(message).split("\n")
 
-            # next page
-            if self.printed > 28:
-                self.clear_and_home()
+        start = self.cur_line
+        end = min(self.line_offset + 28, len(self.lines) - 1) + 1
+
+        self.cur_line += end - start
+        print("\n".join(self.lines[start:end]))
 
 
 def main():

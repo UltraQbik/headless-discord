@@ -363,7 +363,7 @@ class Terminal:
 
     def clear_terminal(self) -> None:
         """
-        Prepares terminal
+        Clears terminal
         """
 
         print(f"\33[2J\33[{self.terminal_lines};0H", end="")
@@ -371,6 +371,14 @@ class Terminal:
         print("\33[H", end="")
 
         self.cur_line = 0
+
+    def next_page(self) -> None:
+        """
+        Clears the terminal, and offsets line offset variable
+        """
+
+        self.line_offset += self.cur_line
+        self.clear_terminal()
 
     def format_message(self, message: Message) -> str:
         """
@@ -425,14 +433,19 @@ class Terminal:
 
         self.lines += self.format_message(self.messages[-1]).split("\n")
 
+        # when the message overflows to the next page
+        if self.cur_line >= (self.terminal_lines-1):
+            self.next_page()
+
         start = self.line_offset + self.cur_line
         end = min(start + self.terminal_lines, len(self.lines)-1) + 1
 
         self.cur_line += end - start
         if self.cur_line >= self.terminal_lines:
             end -= self.cur_line - self.terminal_lines + 1
+            self.cur_line = self.terminal_lines - 1
 
-        print("\n".join(self.lines[start:end]), end="\n" if self.cur_line < self.terminal_lines else "")
+        print("\n".join(self.lines[start:end]), end="\n" if self.cur_line < (self.terminal_lines-1) else "")
 
 
 def main():

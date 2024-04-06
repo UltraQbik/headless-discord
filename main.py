@@ -4,6 +4,7 @@ import json
 import asyncio
 import requests
 import argparse
+import threading
 import websockets
 from typing import Any
 from random import random
@@ -250,9 +251,11 @@ class Client:
 
                 print("Connection successful.\n")
                 self._terminal.clear_terminal()
+                threading.Thread(target=self.process_user_input, daemon=True).start()
                 await asyncio.gather(
                     self.process_heartbeat(),
-                    self.process_input())
+                    self.process_input()
+                )
 
         print("Attempting connect...")
         try:
@@ -293,12 +296,19 @@ class Client:
                 with open("big2.json", "a", encoding="utf8") as file:
                     file.write(json.dumps(response, indent=2) + "\n\n")
 
-    async def process_user_input(self) -> None:
+    def process_user_input(self) -> None:
         """
         Processes user input from terminal
         """
 
-        pass
+        self._terminal.jump_to_input()
+        try:
+            while True:
+                user_input = input()
+                self._terminal.jump_to_input()
+                print("\33[0J", end="", flush=True)
+        except EOFError:
+            pass  # don't care, just die
 
     async def process_heartbeat(self) -> None:
         """
@@ -355,7 +365,8 @@ class Terminal:
     Terminal rendering class
     """
 
-    terminal_lines = 29  # maximum amount of lines we can use
+    terminal_lines = 28  # maximum amount of lines we can use
+    input_message = "[TYPE]: "
 
     def __init__(self):
         self.messages: list[Message] = []
@@ -392,7 +403,7 @@ class Terminal:
 
         os.system("cls" if os.name == "nt" else "clear")
         print(f"\33[{self.terminal_lines};0H", end="")
-        print(f"\33[100m{'='*120}{CS_RESET}\n[TYPE]: ", end="")
+        print(f"\33[100m{'='*120}{CS_RESET}\n{self.input_message}", end="")
         print("\33[H", end="")
 
         self.cur_line = 0
@@ -460,9 +471,41 @@ class Terminal:
         for message in self.messages:
             self.lines += self.format_message(message).split("\n")
 
+    def jump_to_print(self) -> None:
+        """
+        Jumps to position, where the messages are printed
+        """
+
+        print(f"\33[{self.cur_line};0H", end="", flush=True)
+
+    def jump_to_input(self) -> None:
+        """
+        Jumps to position, where the message is inputted
+        """
+
+        print(f"\33[{self.terminal_lines+1};{len(self.input_message)+1}H", end="", flush=True)
+
+    @staticmethod
+    def store_cursor() -> None:
+        """
+        Stores cursor's current position
+        """
+
+        print("\33[s", end="", flush=True)
+
+    @staticmethod
+    def restore_cursor() -> None:
+        """
+        Restores cursor's previous position.
+        Uses SCO, because DEC did not work at all for some reason (using NU shell)
+        """
+
+        print("\33[u", end="", flush=True)
+
     def update_all(self) -> None:
         """
-        Re-prints all the messages to the terminal
+        Re-prints all the messages to the terminal.
+        Uses SCO, because DEC did not work at all for some reason (using NU shell)
         """
 
         self.truncate_buffer()
@@ -492,7 +535,10 @@ class Terminal:
             end -= self.cur_line - self.terminal_lines + 1
             self.cur_line = self.terminal_lines - 1
 
+        self.store_cursor()
+        self.jump_to_print()
         print("\n".join(self.lines[start:end]), end="\n" if self.cur_line < (self.terminal_lines-1) else "")
+        self.restore_cursor()
 
 
 def main():

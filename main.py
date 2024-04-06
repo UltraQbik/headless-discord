@@ -13,7 +13,7 @@ from datetime import datetime
 PING_HIGHLIGHT = "\33[36m"
 PING_ME_HIGHLIGHT = "\33[1;36m"
 STYLE_DARKEN = "\33[90m"
-CODE_BLOCK = "\33[2m"
+CODE_BLOCK = "\33[48;5;234m"
 
 # styles
 CS_RESET = "\33[0m"
@@ -381,6 +381,18 @@ class Terminal:
         self.line_offset = max(self.line_offset + self.cur_line, len(self.lines) - self.terminal_lines//2)
         self.clear_terminal()
 
+    @staticmethod
+    def apply_style(content: str, brackets: str, style: str):
+        """
+        Applies style to the content string
+        """
+
+        brs = "\\" + "\\".join(list(brackets))
+        regex = brs + r"(.*?)" + brs
+        for string in re.findall(regex, content):
+            content = content.replace(f"{brackets}{string}{brackets}", f"{style}{string}{CS_RESET}")
+        return content
+
     def format_message(self, message: Message) -> str:
         """
         Returns terminal formatted message
@@ -393,10 +405,11 @@ class Terminal:
         content = message.content
 
         # apply styles
-        for string in re.findall(r"\*\*(.*?)\*\*", content):
-            content = content.replace(f"**{string}**", f"{STYLE_BOLD}{string}{CS_RESET}")
-        for string in re.findall(r"\*(.*?)\*", content):
-            content = content.replace(f"*{string}*", f"{STYLE_ITALICS}{string}{CS_RESET}")
+        content = self.apply_style(content, "**", STYLE_BOLD)
+        content = self.apply_style(content, "*", STYLE_ITALICS)
+        content = self.apply_style(content, "__", STYLE_UNDERLINE)
+        content = self.apply_style(content, "--", STYLE_STRIKETHROUGH)
+        content = self.apply_style(content, "`", CODE_BLOCK)
 
         # character wrap content
         content = self.character_wrap(content, 120 - newline_offset - 2)

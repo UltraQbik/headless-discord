@@ -2,12 +2,17 @@ import os
 import re
 import json
 import asyncio
+import requests
 import argparse
 import websockets
 from typing import Any
 from random import random
 from datetime import datetime
 
+
+# API links
+GATEWAY = "wss://gateway.discord.gg/?v=9&encoding=json"
+API = "https://discord.com/api/v9/"
 
 # pings
 PING_HIGHLIGHT = "\33[36m"
@@ -212,7 +217,7 @@ class Client:
         self._auth_token = token
 
         async def coro():
-            async with websockets.connect("wss://gateway.discord.gg/?v=9&encoding=json") as websocket:
+            async with websockets.connect(GATEWAY) as websocket:
                 self._socket = websocket
                 self._heartbeat_interval = (await self.get_request())["d"]["heartbeat_interval"]
 
@@ -288,6 +293,13 @@ class Client:
                 with open("big2.json", "a", encoding="utf8") as file:
                     file.write(json.dumps(response, indent=2) + "\n\n")
 
+    async def process_user_input(self) -> None:
+        """
+        Processes user input from terminal
+        """
+
+        pass
+
     async def process_heartbeat(self) -> None:
         """
         Sends heartbeat event to opened gateway, to notify it that the app is running.
@@ -326,6 +338,16 @@ class Client:
         response = await self._socket.recv()
         if response:
             return json.loads(response)
+
+    async def send_api_request(self, request: Any, rtype: str = "POST", http: str = "") -> requests.Response:
+        """
+        Sends API request to discord
+        """
+
+        if rtype == "POST":
+            return requests.post(http, headers={"Authorization": self._auth_token}, json=request)
+        elif rtype == "GET":
+            return requests.get(http, headers={"Authorization": self._auth_token}, json=request)
 
 
 class Terminal:

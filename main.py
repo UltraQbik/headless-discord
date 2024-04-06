@@ -388,12 +388,21 @@ class Terminal:
 
         timestamp = message.timestamp.strftime("%H:%M:%S")
         nickname = message.author.nickname
-
         newline_offset = len(timestamp) + len(nickname) + 3
-        content = self.character_wrap(message.content, 120 - newline_offset - 2)
+
+        content = message.content
+
+        # apply styles
+        for string in re.findall(r"\*\*(.*?)\*\*", content):
+            content = content.replace(f"**{string}**", f"{STYLE_BOLD}{string}{CS_RESET}")
+        for string in re.findall(r"\*(.*?)\*", content):
+            content = content.replace(f"*{string}*", f"{STYLE_ITALICS}{string}{CS_RESET}")
+
+        # character wrap content
+        content = self.character_wrap(content, 120 - newline_offset - 2)
         content = content.replace("\n", f"\n{STYLE_DARKEN}{'-'*newline_offset}>{CS_RESET} ")
 
-        return f"{STYLE_DARKEN}[{timestamp}]{CS_RESET} {nickname}> {content}"
+        return f"{STYLE_DARKEN}[{timestamp}]{CS_RESET} {nickname}{STYLE_DARKEN}>{CS_RESET} {content}"
 
     def truncate_buffer(self, amount=50) -> None:
         """

@@ -366,7 +366,8 @@ class Terminal:
         Clears terminal
         """
 
-        print(f"\33[2J\33[{self.terminal_lines};0H", end="")
+        os.system("cls" if os.name == "nt" else "clear")
+        print(f"\33[{self.terminal_lines};0H", end="")
         print(f"\33[100m{'='*120}{CS_RESET}\n[TYPE]: ", end="")
         print("\33[H", end="")
 

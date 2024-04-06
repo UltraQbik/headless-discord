@@ -202,20 +202,20 @@ class Client:
     current_channel: Channel | None = None
 
     def __init__(self):
-        self._auth_token: str | None = None
+        self._auth: str | None = None
         self._socket: websockets.WebSocketClientProtocol | None = None
 
         self._heartbeat_interval = None
         self._sequence = None
 
-        self._terminal: Terminal = Terminal()
+        self.terminal: Terminal = Terminal()
 
     def run(self, token: str) -> None:
         """
         Connects the client
         """
 
-        self._auth_token = token
+        self._auth = token
 
         async def coro():
             async with websockets.connect(GATEWAY) as websocket:
@@ -226,7 +226,7 @@ class Client:
                     {
                         "op": 2,
                         "d": {
-                            "token": self._auth_token,
+                            "token": self._auth,
                             "capabilities": 16381,
                             "properties": {
                                 "os": "Windows",
@@ -250,7 +250,7 @@ class Client:
                 )
 
                 print("Connection successful.\n")
-                self._terminal.clear_terminal()
+                self.terminal.clear_terminal()
                 threading.Thread(target=self.process_user_input, daemon=True).start()
                 await asyncio.gather(
                     self.process_heartbeat(),
@@ -284,8 +284,8 @@ class Client:
             elif response["t"] == "MESSAGE_CREATE":
                 # if message is in current channel
                 if Client.current_channel == response["d"]["channel_id"] or True:
-                    self._terminal.messages.append(Message.from_response(response["d"]))
-                    self._terminal.update_messages()
+                    self.terminal.messages.append(Message.from_response(response["d"]))
+                    self.terminal.update_messages()
 
             # opcode 1
             elif response["op"] == 1:
@@ -301,12 +301,12 @@ class Client:
         Processes user input from terminal
         """
 
-        self._terminal.jump_to_input()
+        self.terminal.jump_to_input()
         try:
             while True:
                 user_input = input()
-                self._terminal.jump_to_input()
-                print("\33[0J", end="", flush=True)
+                self.terminal.jump_to_input()
+                self.terminal.erase_after_cursor()
         except EOFError:
             pass  # don't care, just die
 
@@ -355,9 +355,9 @@ class Client:
         """
 
         if rtype == "POST":
-            return requests.post(http, headers={"Authorization": self._auth_token}, json=request)
+            return requests.post(http, headers={"Authorization": self._auth}, json=request)
         elif rtype == "GET":
-            return requests.get(http, headers={"Authorization": self._auth_token}, json=request)
+            return requests.get(http, headers={"Authorization": self._auth}, json=request)
 
 
 class Terminal:
@@ -501,6 +501,14 @@ class Terminal:
         """
 
         print("\33[u", end="", flush=True)
+
+    @staticmethod
+    def erase_after_cursor() -> None:
+        """
+        Erases everything after the cursor
+        """
+
+        print("\33[0J", end="", flush=True)
 
     def update_all(self) -> None:
         """

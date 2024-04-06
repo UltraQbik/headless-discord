@@ -127,18 +127,19 @@ class Message:
         # clean content up
         content_mentions = re.findall(r"<(.*?)>", self.content)
         for content_mention in content_mentions:
-            for mention in self.mentions:
-                if content_mention[1:] == mention.id:
-                    username = mention.member.nick if mention.member else mention.username
+            if content_mention[:2] != "@&":
+                for mention in self.mentions:
+                    if content_mention[1:] == mention.id:
+                        username = mention.member.nick if mention.member else mention.username
 
-                    # if user mentioned is the client
-                    if mention.id == Client.user.id:
-                        username = f"{PING_ME_HIGHLIGHT}@{username}{CS_RESET}"
-                    else:
-                        username = f"{PING_HIGHLIGHT}@{username}{CS_RESET}"
+                        # if user mentioned is the client
+                        if mention.id == Client.user.id:
+                            username = f"{PING_ME_HIGHLIGHT}@{username}{CS_RESET}"
+                        else:
+                            username = f"{PING_HIGHLIGHT}@{username}{CS_RESET}"
 
-                    self.content = self.content.replace(f"<{content_mention}>", username)
-                    break
+                        self.content = self.content.replace(f"<{content_mention}>", username)
+                        break
 
         # when @everyone is pinged
         if self.mention_everyone:
@@ -191,8 +192,7 @@ class Guild:
 
 class Client:
     user: User | None = None
-    guilds: list[Guild] | None = None
-    current_guild: Guild | None = None
+    guilds: dict[str, Guild] | None = None
     current_channel: Channel | None = None
 
     def __init__(self):
@@ -270,12 +270,14 @@ class Client:
             # ready
             if response["t"] == "READY":
                 Client.user = User(**(response["d"]["user"]))
-                Client.guilds = [Guild(**x) for x in response["d"]["guilds"]]
+                Client.guilds = {x["id"]: Guild(**x) for x in response["d"]["guilds"]}
 
             # messages
             elif response["t"] == "MESSAGE_CREATE":
-                self._terminal.messages.append(Message.from_response(response["d"]))
-                self._terminal.update_messages()
+                # if message is in current channel
+                if Client.current_channel == response["d"]["channel_id"] or True:
+                    self._terminal.messages.append(Message.from_response(response["d"]))
+                    self._terminal.update_messages()
 
             # opcode 1
             elif response["op"] == 1:
@@ -283,7 +285,7 @@ class Client:
 
             # anything else
             else:
-                with open("big.json", "a", encoding="utf8") as file:
+                with open("big2.json", "a", encoding="utf8") as file:
                     file.write(json.dumps(response, indent=2) + "\n\n")
 
     async def process_heartbeat(self) -> None:

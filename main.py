@@ -402,6 +402,7 @@ class Terminal:
         if len(self.messages) > amount:
             self.line_offset -= len(self.messages) - amount
             self.messages = self.messages[:-amount]
+            self._write_messages()
 
     def _write_messages(self):
         """
@@ -418,10 +419,9 @@ class Terminal:
         """
 
         self.truncate_buffer()
-        self._write_messages()
         self.clear_terminal()
 
-        self.line_offset = len(self.lines) - self.terminal_lines - 1
+        self.line_offset = len(self.lines) - self.terminal_lines//2
         self.cur_line = 0
 
         self.update_messages()

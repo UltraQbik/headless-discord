@@ -16,7 +16,9 @@ os.system("")
 parser = argparse.ArgumentParser(
     prog="HeadlessDiscord",
     description="Terminal version of discord")
-parser.add_argument("auth", help="authentication token (your discord token)")
+parser.add_argument("--auth",
+                    help="authentication token (your discord token)",
+                    default=os.getenv("DISCORD_AUTH"), required=False)
 args = parser.parse_args()
 
 
@@ -89,6 +91,7 @@ class Message:
             kwargs.get("timestamp")) if "timestamp" in kwargs else None
         self.author: User | None = User.from_response(kwargs)
         self.mentions: list[User] = [User.from_response_mention(x) for x in kwargs["mentions"]]
+        self.mention_everyone: bool = kwargs.get("mention_everyone", False)
         self.content: str = kwargs.get("content")
 
         # guild data
@@ -104,9 +107,21 @@ class Message:
 
                     # if user mentioned is the client
                     if mention.id == Client.user.id:
-                        username = "\33[1;36m" + username + "\33[0m"
+                        username = "\33[1;96m" + username + "\33[0m"
 
                     self.content = self.content.replace(f"<{content_mention}>", username)
+                    break
+
+        # when @everyone is pinged
+        if self.mention_everyone:
+            self.content = self.content.replace("@everyone", "\33[94m@everyone\33[0m")
+
+        # when @everyone is pinged, but not really (aka user doesn't have permission to)
+        else:
+            self.content = self.content.replace("@everyone", "\33[34m@everyone\33[0m")
+
+        # when @here is pinged
+        self.content = self.content.replace("@here", "\33[34m@here\33[0m")
 
     @staticmethod
     def from_response(response: dict):
@@ -149,6 +164,8 @@ class Guild:
 class Client:
     user: User | None = None
     guilds: list[Guild] | None = None
+    current_guild: Guild | None = None
+    current_channel: Channel | None = None
 
     def __init__(self):
         self._auth_token: str | None = None
@@ -156,6 +173,8 @@ class Client:
 
         self._heartbeat_interval = None
         self._sequence = None
+
+        self._terminal: Terminal = Terminal()
 
     def run(self, token: str) -> None:
         """
@@ -197,6 +216,7 @@ class Client:
                 )
 
                 print("Connection successful.\n")
+                self._terminal.clear_and_home()
                 await asyncio.gather(
                     self.process_heartbeat(),
                     self.process_input())
@@ -226,8 +246,8 @@ class Client:
 
             # messages
             elif response["t"] == "MESSAGE_CREATE":
-                message = Message.from_response(response["d"])
-                print(message)
+                self._terminal.messages.append(Message.from_response(response["d"]))
+                self._terminal.update_last()
 
             # opcode 1
             elif response["op"] == 1:
@@ -278,9 +298,70 @@ class Client:
             return json.loads(response)
 
 
+class Terminal:
+    """
+    Terminal rendering class
+    """
+
+    def __init__(self):
+        self.messages: list[Message] = []
+        self.printed: int = 0
+
+    @staticmethod
+    def clear_and_home() -> None:
+        """
+        Clears the terminal, and returns the cursor
+        """
+
+        print(f"\33[2J\33[H", end="")
+
+    @staticmethod
+    def print_message(message: Message) -> None:
+        """
+        Prints out 1 message
+        """
+
+        timestamp = message.timestamp.strftime("[%H:%M:%S]")
+        username = message.author.member.nick if message.guild_id else message.author.username
+        newline_offset = ' ' * (len(timestamp) + len(username) + 3)
+        content = message.content.replace("\n", f"\n{newline_offset}")
+        print(
+            "\33[90m" + timestamp + "\33[0m",
+            username + ">",
+            content
+        )
+
+    def update_messages(self) -> None:
+        """
+        Re-prints all the messages to the terminal
+        """
+
+        self.printed = -1
+        self.clear_and_home()
+        for message in self.messages:
+            self.print_message(message)
+            self.printed += 1
+
+    def update_last(self) -> None:
+        """
+        Only prints new messages
+        """
+
+        for message in self.messages[self.printed:]:
+            self.print_message(message)
+            self.printed += 1
+
+            # next page
+            if self.printed >= 28:
+                self.clear_and_home()
+
+
 def main():
     cli = Client()
-    cli.run(args.auth)
+    if args.auth:
+        cli.run(args.auth)
+    else:
+        raise Exception("No authentication token was given, use \33[1;31mpython3 main.py --help\33[0m to get help")
 
 
 if __name__ == '__main__':

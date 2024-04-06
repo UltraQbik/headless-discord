@@ -304,11 +304,25 @@ class Client:
         self.terminal.jump_to_input()
         try:
             while True:
-                user_input = input()
+                self.process_user_commands(input())
                 self.terminal.jump_to_input()
                 self.terminal.erase_after_cursor()
         except EOFError:
             pass  # don't care, just die
+
+    def process_user_commands(self, user_input) -> None:
+        """
+        Processes user inputted commands
+        """
+
+        # when user inputs // => that's a command
+        if user_input[:2] == "//":
+            command = user_input[2:]
+            self.terminal.log_message(command)
+
+        # otherwise it's text or something, so make an API request
+        else:
+            pass
 
     async def process_heartbeat(self) -> None:
         """
@@ -510,6 +524,14 @@ class Terminal:
 
         print("\33[0J", end="", flush=True)
 
+    def log_message(self, message: str) -> None:
+        """
+        Logs your own message, cautious of user input stuff
+        """
+
+        self.lines += message.split("\n")
+        self.update_messages(False)
+
     def update_all(self) -> None:
         """
         Re-prints all the messages to the terminal.
@@ -524,12 +546,13 @@ class Terminal:
 
         self.update_messages()
 
-    def update_messages(self):
+    def update_messages(self, read_last=True):
         """
         Updates terminal with new message
         """
 
-        self.lines += self.format_message(self.messages[-1]).split("\n")
+        if read_last:
+            self.lines += self.format_message(self.messages[-1]).split("\n")
 
         # when the message overflows to the next page
         if self.cur_line >= (self.terminal_lines-1):

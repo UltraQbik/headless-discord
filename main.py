@@ -12,8 +12,8 @@ from datetime import datetime
 
 
 # API links
-GATEWAY = "wss://gateway.discord.gg/?v=9&encoding=json"
-API = "https://discord.com/api/v9/"
+GATEWAY = r"wss://gateway.discord.gg/?v=9&encoding=json"
+API = r"https://discord.com/api/v9"
 
 # pings
 PING_HIGHLIGHT = "\33[36m"
@@ -199,7 +199,7 @@ class Guild:
 class Client:
     user: User | None = None
     guilds: dict[str, Guild] | None = None
-    current_channel: Channel | None = None
+    current_channel: Channel | None = Channel()
 
     def __init__(self):
         self._auth: str | None = None
@@ -283,7 +283,7 @@ class Client:
             # messages
             elif response["t"] == "MESSAGE_CREATE":
                 # if message is in current channel
-                if Client.current_channel == response["d"]["channel_id"] or True:
+                if response["d"]["channel_id"] == Client.current_channel.id:
                     self.terminal.messages.append(Message.from_response(response["d"]))
                     self.terminal.update_messages()
 
@@ -322,7 +322,11 @@ class Client:
 
         # otherwise it's text or something, so make an API request
         else:
-            pass
+            if Client.current_channel.id:
+                self.send_api_request(
+                    request={"content": user_input},
+                    http=f"{API}/channels/{Client.current_channel.id}/messages"
+                )
 
     async def process_heartbeat(self) -> None:
         """

@@ -330,6 +330,8 @@ class Terminal:
     Terminal rendering class
     """
 
+    terminal_lines = 28  # maximum amount of lines we can use
+
     def __init__(self):
         self.messages: list[Message] = []
         self.lines: list[str] = []
@@ -415,11 +417,14 @@ class Terminal:
         self.messages.append(message)
         self.lines += self.format_message(message).split("\n")
 
-        start = self.cur_line
-        end = min(self.line_offset + 28, len(self.lines) - 1) + 1
+        start = self.line_offset + self.cur_line
+        end = min(start + self.terminal_lines, len(self.lines)-1) + 1
 
         self.cur_line += end - start
-        print("\n".join(self.lines[start:end]))
+        if self.cur_line >= self.terminal_lines:
+            end -= self.cur_line - self.terminal_lines + 1
+
+        print("\n".join(self.lines[start:end]), end="\n" if end - start > 0 else "")
 
 
 def main():

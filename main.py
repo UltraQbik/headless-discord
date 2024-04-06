@@ -349,7 +349,7 @@ class Client:
         if response:
             return json.loads(response)
 
-    async def send_api_request(self, request: Any, rtype: str = "POST", http: str = "") -> requests.Response:
+    def send_api_request(self, request: Any, rtype: str = "POST", http: str = "") -> requests.Response:
         """
         Sends API request to discord
         """
@@ -476,7 +476,7 @@ class Terminal:
         Jumps to position, where the messages are printed
         """
 
-        print(f"\33[{self.cur_line};0H", end="", flush=True)
+        print(f"\33[{self.cur_line+1};0H", end="", flush=True)
 
     def jump_to_input(self) -> None:
         """
@@ -535,6 +535,9 @@ class Terminal:
         if self.cur_line >= (self.terminal_lines-1):
             self.next_page()
 
+        self.store_cursor()
+        self.jump_to_print()
+
         start = self.line_offset + self.cur_line
         end = min(start + self.terminal_lines, len(self.lines)-1) + 1
 
@@ -543,8 +546,6 @@ class Terminal:
             end -= self.cur_line - self.terminal_lines + 1
             self.cur_line = self.terminal_lines - 1
 
-        self.store_cursor()
-        self.jump_to_print()
         print("\n".join(self.lines[start:end]), end="\n" if self.cur_line < (self.terminal_lines-1) else "")
         self.restore_cursor()
 

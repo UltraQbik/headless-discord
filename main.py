@@ -9,10 +9,23 @@ from random import random
 from datetime import datetime
 
 
+# pings
+PING_HIGHLIGHT = "\33[36m"
+PING_ME_HIGHLIGHT = "\33[1;36m"
+CODE_BLOCK = "\33[2m"
+
+# styles
+CS_RESET = "\33[0m"
+STYLE_BOLD = "\33[1m"
+STYLE_ITALICS = "\33[3m"
+STYLE_UNDERLINE = "\33[4m"
+STYLE_STRIKETHROUGH = "\33[9m"
+
 # initialize ANSI escape codes
 # without this, they don't work
 os.system("")
 
+# parser
 parser = argparse.ArgumentParser(
     prog="HeadlessDiscord",
     description="Terminal version of discord")
@@ -103,25 +116,26 @@ class Message:
             for mention in self.mentions:
                 if content_mention[1:] == mention.id:
                     username = mention.member.nick if mention.member else mention.username
-                    username = f"\33[36m@{username}\33[0m"
 
                     # if user mentioned is the client
                     if mention.id == Client.user.id:
-                        username = "\33[1;96m" + username + "\33[0m"
+                        username = f"{PING_ME_HIGHLIGHT}@{username}{CS_RESET}"
+                    else:
+                        username = f"{PING_HIGHLIGHT}@{username}{CS_RESET}"
 
                     self.content = self.content.replace(f"<{content_mention}>", username)
                     break
 
         # when @everyone is pinged
         if self.mention_everyone:
-            self.content = self.content.replace("@everyone", "\33[94m@everyone\33[0m")
+            self.content = self.content.replace("@everyone", f"{PING_ME_HIGHLIGHT}@everyone{CS_RESET}")
 
         # when @everyone is pinged, but not really (aka user doesn't have permission to)
         else:
-            self.content = self.content.replace("@everyone", "\33[34m@everyone\33[0m")
+            self.content = self.content.replace("@everyone", f"{PING_HIGHLIGHT}@everyone{CS_RESET}")
 
         # when @here is pinged
-        self.content = self.content.replace("@here", "\33[34m@here\33[0m")
+        self.content = self.content.replace("@here", f"{PING_ME_HIGHLIGHT}@here{CS_RESET}")
 
     @staticmethod
     def from_response(response: dict):

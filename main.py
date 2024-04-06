@@ -377,7 +377,7 @@ class Terminal:
         Clears the terminal, and offsets line offset variable
         """
 
-        self.line_offset += self.cur_line
+        self.line_offset = max(self.line_offset + self.cur_line, len(self.lines) - self.terminal_lines//2)
         self.clear_terminal()
 
     def format_message(self, message: Message) -> str:

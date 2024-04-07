@@ -199,6 +199,7 @@ class Channel:
         self.name: str = kwargs.get("name")
         self.nsfw: bool = kwargs.get("nsfw")
         self.position: int = kwargs.get("position")
+        self.type: int = kwargs.get("type")
 
 
 class Guild:
@@ -375,6 +376,7 @@ class Client:
 
                 self.terminal.print(f"{CLIENT_LOG} list of channels:{CS_RESET}")
                 for idx, channel in enumerate(Client.guilds[index].channels):
+                    if channel.type
                     self.terminal.print(f"\t[{idx}] {channel.name}")
 
             # pick channel in guild command
@@ -389,8 +391,8 @@ class Client:
                 guild = Client.guilds[guild_idx]
                 if abs(channel_idx) > len(guild.channels):
                     return
-                Client.current_channel = guild.channels[channel_idx]
 
+                Client.current_channel = guild.channels[channel_idx]
                 self.terminal.print(
                     f"{CLIENT_LOG} now viewing:{STYLE_ITALICS}{Client.current_channel.name}{CS_RESET}")
 
@@ -651,7 +653,7 @@ class Term:
         :param sep: separators used between values
         """
 
-        lines = self.character_wrap(sep.join(values)).split("\n")
+        lines = self.character_wrap(sep.join(map(str, values))).split("\n")
         self.str_lines += lines
 
         self.partial_update()

@@ -58,6 +58,43 @@ parser.add_argument("--auth",
 args = parser.parse_args()
 
 
+def apply_style(content: str, brackets: str, style: str):
+    """
+    Applies style to the content string
+    """
+
+    brs = "\\" + "\\".join(list(brackets))
+    regex = brs + r"(.*?)" + brs
+    for string in re.findall(regex, content):
+        content = content.replace(f"{brackets}{string}{brackets}", f"{style}{string}{CS_RESET}")
+    return content
+
+
+def format_message(message) -> str:
+    """
+    Returns terminal formatted message
+    """
+
+    timestamp = message.timestamp.strftime("%H:%M:%S")
+    nickname = message.author.nickname
+    newline_offset = len(timestamp) + len(nickname) + 3
+
+    content = message.content
+
+    # apply styles
+    content = apply_style(content, "**", STYLE_BOLD)
+    content = apply_style(content, "*", STYLE_ITALICS)
+    content = apply_style(content, "__", STYLE_UNDERLINE)
+    content = apply_style(content, "--", STYLE_STRIKETHROUGH)
+    content = apply_style(content, "`", CODE_BLOCK)
+
+    # character wrap content
+    content = Term.character_wrap(content)
+    content = content.replace("\n", f"\n{STYLE_DARKEN}{'-' * newline_offset}>{CS_RESET} ")
+
+    return f"{STYLE_DARKEN}[{timestamp}]{CS_RESET} {nickname}{STYLE_DARKEN}>{CS_RESET} {content}"
+
+
 class Member:
     """
     Guild member class
@@ -623,10 +660,22 @@ class Term:
             f"{TERM_INPUT_FIELD}{self.input_field}{' '*(TERM_WIDTH-len(self.input_field))}{CS_RESET}",
             end="", flush=flush)
 
+    def _print_messages(self):
+        """
+        Prints out all messages from message stack
+        """
+
+        while self.messages:
+            message = self.messages.pop()
+            formatted_message = format_message(message)
+            self.print(formatted_message)
+
     def partial_update(self):
         """
         Partially updates the messages (prints missing ones)
         """
+
+        self._print_messages()
 
         start = self.line_offset + self.current_line
         end = min(len(self.str_lines), start + self.message_field)
@@ -663,6 +712,7 @@ class Term:
         """
 
         self.clear_terminal(False)
+        self._print_messages()
 
         start = self.line_offset
         end = min(len(self.str_lines), self.line_offset + self.message_field)

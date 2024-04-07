@@ -12,9 +12,11 @@ from string import printable
 from sshkeyboard import listen_keyboard_manual
 
 
-# terminal width and height
+# terminal
 TERM_WIDTH = 120
 TERM_HEIGHT = 30
+TERM_CURSOR = "\33[42m"
+TERM_INPUT_FIELD = "\33[48;5;236m"
 
 # API links
 GATEWAY = r"wss://gateway.discord.gg/?v=9&encoding=json"
@@ -604,11 +606,10 @@ class Term:
         """
 
         self.set_cursor(len(self.input_field)+1, self.message_field+1, False)
-
         user_input = "".join(self.user_input[:self.user_cursor])
-        user_input += "\33[42m" + self.user_input[self.user_cursor] + "\33[48;5;236m"
+        user_input += TERM_CURSOR + self.user_input[self.user_cursor] + TERM_INPUT_FIELD
         user_input += "".join(self.user_input[self.user_cursor+1:])
-        print(f"\33[0K\33[48;5;236m{user_input}{CS_RESET}", end="", flush=True)
+        print(f"\33[0K{TERM_INPUT_FIELD}{user_input}{CS_RESET}", end="", flush=True)
 
     def clear_terminal(self, flush=True):
         """
@@ -619,8 +620,8 @@ class Term:
         os.system("cls" if os.name == "nt" else "clear")
         print(
             f"\33[{self.message_field};0H"
-            f"\33[48;5;236m{'='*TERM_WIDTH}{CS_RESET}\n"
-            f"\33[48;5;236m{self.input_field}{' '*(TERM_WIDTH-len(self.input_field))}{CS_RESET}"
+            f"{TERM_INPUT_FIELD}{'='*TERM_WIDTH}{CS_RESET}\n"
+            f"{TERM_INPUT_FIELD}{self.input_field}{' '*(TERM_WIDTH-len(self.input_field))}{CS_RESET}"
             f"\33[H",
             end="", flush=flush)
 

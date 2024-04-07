@@ -358,15 +358,15 @@ class Client:
 
             # help command
             if command[0] == "help":
-                self.terminal.log_message(f"{CLIENT_LOG} here's a list of instructions:{CS_RESET}")
+                self.terminal.print(f"{CLIENT_LOG} here's a list of instructions:{CS_RESET}")
                 for help_msg in CLIENT_HELP:
-                    self.terminal.log_message(f"\t{help_msg}")
+                    self.terminal.print(f"\t{help_msg}")
 
             # list guilds command
             elif command[0] == "list_g":
-                self.terminal.log_message(f"{CLIENT_LOG} list of guilds:{CS_RESET}")
+                self.terminal.print(f"{CLIENT_LOG} list of guilds:{CS_RESET}")
                 for idx, guild in enumerate(Client.guilds):
-                    self.terminal.log_message(f"\t[{idx}] {guild.name}")
+                    self.terminal.print(f"\t[{idx}] {guild.name}")
 
             # list channels in guild command
             elif command[0] == "list_c" and len(command) >= 2:
@@ -377,9 +377,9 @@ class Client:
                 if abs(index) > len(Client.guilds):
                     return
 
-                self.terminal.log_message(f"{CLIENT_LOG} list of channels:{CS_RESET}")
+                self.terminal.print(f"{CLIENT_LOG} list of channels:{CS_RESET}")
                 for idx, channel in enumerate(Client.guilds[index].channels):
-                    self.terminal.log_message(f"\t[{idx}] {channel.name}")
+                    self.terminal.print(f"\t[{idx}] {channel.name}")
 
             # pick channel in guild command
             elif command[0] == "pick_c" and len(command) >= 3:
@@ -395,7 +395,7 @@ class Client:
                     return
                 Client.current_channel = guild.channels[channel_idx]
 
-                self.terminal.log_message(
+                self.terminal.print(
                     f"{CLIENT_LOG} now viewing:{STYLE_ITALICS}{Client.current_channel.name}{CS_RESET}")
 
         # otherwise it's text or something, so make an API request
@@ -406,7 +406,7 @@ class Client:
                     http=f"{API}/channels/{Client.current_channel.id}/messages"
                 )
             else:
-                self.terminal.log_message(f"{CLIENT_LOG} you haven't chosen a channel! use '//help'{CS_RESET}")
+                self.terminal.print(f"{CLIENT_LOG} you haven't chosen a channel! use '//help'{CS_RESET}")
 
     async def process_heartbeat(self) -> None:
         """
@@ -628,22 +628,16 @@ class Term:
             f"{TERM_INPUT_FIELD}{self.input_field}{' '*(TERM_WIDTH-len(self.input_field))}{CS_RESET}",
             end="", flush=flush)
 
-    def print(self, *values, sep=" ", flush=False):
+    def partial_update(self):
         """
-        Prints out a string to the terminal
-        :param values: values that will be printed
-        :param sep: separators used between values
-        :param flush: forcibly flush content
+        Partially updates the messages (prints missing ones)
         """
-
-        lines = self.character_wrap(sep.join(values)).split("\n")
-        self.str_lines += lines
 
         start = self.line_offset + self.current_line
         end = min(len(self.str_lines), start + self.message_field)
 
         # set cursor position to the next line
-        self.set_cursor(0, self.current_line+1)
+        self.set_cursor(0, self.current_line + 1)
 
         # if the amount of lines added overflows the message field
         if end - self.line_offset > self.message_field:
@@ -655,6 +649,18 @@ class Term:
 
         to_print = "\n".join(self.str_lines[start:end])
         print(to_print, end="", flush=True)
+
+    def print(self, *values, sep=" "):
+        """
+        Prints out a string to the terminal
+        :param values: values that will be printed
+        :param sep: separators used between values
+        """
+
+        lines = self.character_wrap(sep.join(values)).split("\n")
+        self.str_lines += lines
+
+        self.partial_update()
 
     def update_all(self):
         """

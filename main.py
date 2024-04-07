@@ -250,6 +250,7 @@ class Client:
         self._sequence = None
 
         self.terminal: Term = Term()
+        self.terminal.input_callback = self.process_user_commands
 
     def run(self, token: str) -> None:
         """
@@ -295,7 +296,6 @@ class Client:
                 await asyncio.gather(
                     self.process_heartbeat(),
                     self.process_input(),
-                    self.process_user_input(),
                     self.terminal.start_listening()
                 )
 
@@ -328,7 +328,7 @@ class Client:
                 # if message is in current channel
                 if response["d"]["channel_id"] == Client.current_channel.id:
                     self.terminal.messages.append(Message.from_response(response["d"]))
-                    self.terminal.update_messages()
+                    self.terminal.partial_update()
 
             # opcode 1
             elif response["op"] == 1:
@@ -339,17 +339,13 @@ class Client:
                 with open("big2.json", "a", encoding="utf8") as file:
                     file.write(json.dumps(response, indent=2) + "\n\n")
 
-    async def process_user_input(self) -> None:
-        """
-        Processes user input from terminal
-        """
-
-        pass
-
-    def process_user_commands(self, user_input) -> None:
+    def process_user_commands(self, user_input: list[str]) -> None:
         """
         Processes user inputted commands
         """
+
+        # make input string a string
+        user_input: str = "".join(user_input).strip(" ")
 
         # when user inputs // => that's a command
         if user_input[:2] == "//":
@@ -474,7 +470,7 @@ class Term:
         self.current_line: int = 0
 
         # terminal user input
-        self.input_callout: Callable = lambda x: None
+        self.input_callback: Callable = lambda x: None
         self.user_input: list[str] = [" " for _ in range(TERM_WIDTH - len(self.input_field))]
         self.user_cursor: int = 0
 
@@ -503,7 +499,7 @@ class Term:
             self._pop_user_input()
             self._update_input()
         elif key == "enter":
-            self.input_callout(self.user_input)
+            self.input_callback(self.user_input)
             self._clear_user_input()
             self._update_input()
         elif key == "up":

@@ -4,7 +4,6 @@ import json
 import asyncio
 import requests
 import argparse
-import threading
 import websockets
 from typing import Any
 from random import random
@@ -515,5 +514,24 @@ def main():
         raise Exception("No authentication token was given, use \33[1;31mpython3 main.py --help\33[0m to get help")
 
 
+def debug():
+    terminal = Term()
+
+    async def while_true():
+        while True:
+            await asyncio.sleep(0.1)
+
+    async def coro():
+        await asyncio.gather(
+            terminal.start_listening(),
+            while_true())
+
+    try:
+        asyncio.run(coro())
+    except KeyboardInterrupt:
+        print("Ded.")
+
+
 if __name__ == '__main__':
-    main()
+    # main()
+    debug()

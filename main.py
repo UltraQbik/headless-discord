@@ -463,7 +463,7 @@ class Term:
     Terminal rendering class
     """
 
-    message_field: int = TERM_HEIGHT - 1
+    message_field: int = TERM_HEIGHT - 2
     input_field: str = '[-]: '
 
     def __init__(self):
@@ -508,8 +508,10 @@ class Term:
             self._update_input()
         elif key == "up":
             self.change_line(-5)
+            self.update_all()
         elif key == "down":
             self.change_line(5)
+            self.update_all()
         elif key == "left":
             self._change_user_cursor(-1)
             self._update_input()
@@ -518,9 +520,14 @@ class Term:
             self._update_input()
         elif key == "pageup":
             self.change_line(-self.message_field)
+            self.update_all()
         elif key == "pagedown":
             self.change_line(self.message_field)
+            self.update_all()
+        elif key == "home":
+            self.print("hello")
         else:
+            self.print(*[f"cum {x}\n" for x in range(69)], sep="")
             pass
 
     async def key_release_callout(self, key: str):
@@ -538,7 +545,7 @@ class Term:
         if offset < 0:
             self.line_offset = max(0, self.line_offset + offset)
         else:
-            self.line_offset = min(len(self.str_lines)+10, self.line_offset + offset)
+            self.line_offset = min(len(self.str_lines) - 8, self.line_offset + offset)
 
     @staticmethod
     def character_wrap(string: str) -> str:
@@ -605,7 +612,7 @@ class Term:
         Updates user input string
         """
 
-        self.set_cursor(len(self.input_field)+1, self.message_field+1, False)
+        self.set_cursor(len(self.input_field)+1, self.message_field+2, False)
         user_input = "".join(self.user_input[:self.user_cursor])
         user_input += TERM_CURSOR + self.user_input[self.user_cursor] + TERM_INPUT_FIELD
         user_input += "".join(self.user_input[self.user_cursor+1:])
@@ -619,23 +626,52 @@ class Term:
         self.current_line = 0
         os.system("cls" if os.name == "nt" else "clear")
         print(
-            f"\33[{self.message_field};0H"
+            f"\33[{self.message_field+1};0H"
             f"{TERM_INPUT_FIELD}{'='*TERM_WIDTH}{CS_RESET}\n"
-            f"{TERM_INPUT_FIELD}{self.input_field}{' '*(TERM_WIDTH-len(self.input_field))}{CS_RESET}"
-            f"\33[H",
+            f"{TERM_INPUT_FIELD}{self.input_field}{' '*(TERM_WIDTH-len(self.input_field))}{CS_RESET}",
             end="", flush=flush)
 
-    def print(self, *values, sep=" ", end="\n", flush=False):
+    def print(self, *values, sep=" ", flush=False):
         """
         Prints out a string to the terminal
         :param values: values that will be printed
         :param sep: separators used between values
-        :param end: what to put at the end of the string
         :param flush: forcibly flush content
         """
 
-        lines = self.character_wrap(sep.join(values) + end).split("\n")
+        lines = self.character_wrap(sep.join(values)).split("\n")
         self.str_lines += lines
+
+        start = self.line_offset + self.current_line
+        end = min(len(self.str_lines), start + self.message_field)
+
+        # set cursor position to the next line
+        self.set_cursor(0, self.current_line+1)
+
+        # if the amount of lines added overflows the message field
+        if end - self.line_offset > self.message_field:
+            # clamp it to limits of message field
+            end = start + self.message_field - self.current_line
+
+        # offset the current line by the amount of added newline
+        self.current_line += end - start
+
+        to_print = "\n".join(self.str_lines[start:end])
+        print(to_print, end="", flush=True)
+
+    def update_all(self):
+        """
+        Updates everything on the terminal
+        """
+
+        self.clear_terminal(False)
+
+        start = self.line_offset
+        end = min(len(self.str_lines), self.line_offset + self.message_field)
+        print("\33[H" + "\n".join(self.str_lines[start:end]), end="", flush=False)
+        self.current_line = end - start
+
+        self._update_input()
 
 
 def main():

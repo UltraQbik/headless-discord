@@ -199,14 +199,28 @@ class Guild:
 
     def __init__(self, **kwargs):
         self.id: str = kwargs.get("id")
+        self.name: str = kwargs.get("name")
         self.channels: list[Channel] = [Channel(**x) for x in kwargs["channels"]]
         self.member_count: int = kwargs.get("member_count")
         # TODO: add threads
 
+    @staticmethod
+    def from_response(response):
+        """
+        Generates guild instance from discord response
+        """
+
+        return Guild(
+            id=response["id"],
+            name=response["properties"]["name"],
+            channels=response["channels"],
+            member_count=response["member_count"]
+        )
+
 
 class Client:
     user: User | None = None
-    guilds: dict[str, Guild] | None = None
+    guilds: list[Guild] | None = []
     current_channel: Channel | None = Channel()
 
     def __init__(self):
@@ -286,7 +300,7 @@ class Client:
             # ready
             if response["t"] == "READY":
                 Client.user = User(**(response["d"]["user"]))
-                Client.guilds = {x["id"]: Guild(**x) for x in response["d"]["guilds"]}
+                Client.guilds = [Guild.from_response(x) for x in response["d"]["guilds"]]
 
             # messages
             elif response["t"] == "MESSAGE_CREATE":
@@ -325,11 +339,33 @@ class Client:
 
         # when user inputs // => that's a command
         if user_input[:2] == "//":
-            command = user_input[2:].split(" ")
+            command_raw = user_input[2:]
+            command = command_raw.split(" ")
+
+            # help command
             if command[0] == "help":
                 self.terminal.log_message(f"{CLIENT_LOG} here's a list of instructions:{CS_RESET}")
                 for help_msg in CLIENT_HELP:
                     self.terminal.log_message(f"\t{help_msg}")
+
+            # list guilds command
+            elif command[0] == "list_g":
+                self.terminal.log_message(f"{CLIENT_LOG} list of guilds:{CS_RESET}")
+                for idx, guild in enumerate(Client.guilds):
+                    self.terminal.log_message(f"\t[{idx}] {guild.name}")
+
+            # list channels in guild command
+            elif command[0] == "list_c" and len(command) >= 2:
+                try:
+                    index = int(command[1])
+                except ValueError:
+                    return
+                if abs(index) > len(Client.guilds):
+                    return
+
+                self.terminal.log_message(f"{CLIENT_LOG} list of channels:{CS_RESET}")
+                for idx, channel in enumerate(Client.guilds[index].channels):
+                    self.terminal.log_message(f"\t[{idx}] {channel.name}")
 
         # otherwise it's text or something, so make an API request
         else:

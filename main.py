@@ -12,6 +12,10 @@ from string import printable
 from sshkeyboard import listen_keyboard_manual
 
 
+# terminal width and height
+TERM_WIDTH = 120
+TERM_HEIGHT = 30
+
 # API links
 GATEWAY = r"wss://gateway.discord.gg/?v=9&encoding=json"
 API = r"https://discord.com/api/v9"
@@ -457,7 +461,8 @@ class Term:
     Terminal rendering class
     """
 
-    message_field = 29
+    message_field: int = TERM_HEIGHT - 1
+    input_field: str = '[-]: '
 
     def __init__(self):
         # terminal stuff
@@ -468,7 +473,8 @@ class Term:
 
         # terminal user input
         self.input_callout: Callable = lambda x: None
-        self.user_input: str = ""
+        self.user_input: list[str] = [" " for _ in range(TERM_WIDTH - len(self.input_field))]
+        self.user_cursor: int = 0
 
     async def start_listening(self):
         """
@@ -477,7 +483,7 @@ class Term:
 
         await listen_keyboard_manual(
             on_press=self.key_press_callout, on_release=self.key_release_callout,
-            delay_second_char=0.05
+            delay_second_char=0.05, lower=False
         )
 
     async def key_press_callout(self, key: str):
@@ -486,17 +492,28 @@ class Term:
         """
 
         if key in printable:
-            self.user_input += key
+            self._insert_user_input(key)
+            self._update_input()
         elif key == "space":
-            self.user_input += " "
+            self._insert_user_input(" ")
+            self._update_input()
         elif key == "backspace":
-            self.user_input = self.user_input[:-1]
+            self._pop_user_input()
+            self._update_input()
         elif key == "enter":
             self.input_callout(self.user_input)
+            self._clear_user_input()
+            self._update_input()
         elif key == "up":
             self.change_line(-5)
         elif key == "down":
             self.change_line(5)
+        elif key == "left":
+            self._change_user_cursor(-1)
+            self._update_input()
+        elif key == "right":
+            self._change_user_cursor(1)
+            self._update_input()
         elif key == "pageup":
             self.change_line(-self.message_field)
         elif key == "pagedown":
@@ -519,7 +536,7 @@ class Term:
         if offset < 0:
             self.line_offset = max(0, self.line_offset + offset)
         else:
-            self.line_offset = min(0, self.line_offset + offset)
+            self.line_offset = min(len(self.str_lines)+10, self.line_offset + offset)
 
     @staticmethod
     def character_wrap(string: str) -> str:
@@ -534,7 +551,7 @@ class Term:
             line_len += 1
             if char == "\n":
                 line_len = 0
-            if line_len >= 120:
+            if line_len >= TERM_WIDTH:
                 new_string += "\n"
                 line_len = 0
         return new_string
@@ -545,7 +562,53 @@ class Term:
         Sets the cursor position to the given out
         """
 
-        print(f"\33[{y};{x}H", flush=flush)
+        print(f"\33[{y};{x}H", end="", flush=flush)
+
+    def _clear_user_input(self):
+        """
+        Clears user input buffer
+        """
+
+        self.user_input = [" " for _ in range(TERM_WIDTH - len(self.input_field))]
+        self.user_cursor = 0
+
+    def _change_user_cursor(self, offset: int):
+        """
+        Offsets the user input cursor
+        """
+
+        if offset < 0:
+            self.user_cursor = max(0, self.user_cursor + offset)
+        else:
+            self.user_cursor = min(len(self.user_input), self.user_cursor - offset)
+
+    def _insert_user_input(self, key: str):
+        """
+        Inserts text into user input string
+        """
+
+        self.user_input[self.user_cursor] = key
+        self.user_cursor += 1
+
+    def _pop_user_input(self):
+        """
+        Basically backspace implementation
+        """
+
+        self.user_cursor -= 1
+        self.user_input[self.user_cursor] = " "
+
+    def _update_input(self):
+        """
+        Updates user input string
+        """
+
+        self.set_cursor(len(self.input_field)+1, self.message_field+1, False)
+
+        user_input = "".join(self.user_input[:self.user_cursor])
+        user_input += "\33[42m" + self.user_input[self.user_cursor] + "\33[48;5;236m"
+        user_input += "".join(self.user_input[self.user_cursor+1:])
+        print(f"\33[0K\33[48;5;236m{user_input}{CS_RESET}", end="", flush=True)
 
     def clear_terminal(self, flush=True):
         """
@@ -556,8 +619,8 @@ class Term:
         os.system("cls" if os.name == "nt" else "clear")
         print(
             f"\33[{self.message_field};0H"
-            f"\33[48;5;236m{'='*120}\n"
-            f"{'[-]: ': <120}{CS_RESET}"
+            f"\33[48;5;236m{'='*TERM_WIDTH}{CS_RESET}\n"
+            f"\33[48;5;236m{self.input_field}{' '*(TERM_WIDTH-len(self.input_field))}{CS_RESET}"
             f"\33[H",
             end="", flush=flush)
 

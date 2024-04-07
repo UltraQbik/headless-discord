@@ -704,7 +704,7 @@ class Term:
         :param sep: separators used between values
         """
 
-        lines = self.character_wrap(sep.join(map(str, values))).split("\n")
+        lines = character_wrap(sep.join(map(str, values))).split("\n")
         self.str_lines += lines
 
         self.partial_update()

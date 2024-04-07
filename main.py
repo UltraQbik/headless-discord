@@ -4,13 +4,19 @@ import json
 import asyncio
 import requests
 import argparse
-import threading
 import websockets
-from typing import Any
+from typing import Any, Callable
 from random import random
 from datetime import datetime
-from sshkeyboard import listen_keyboard
+from string import printable
+from sshkeyboard import listen_keyboard_manual
 
+
+# terminal
+TERM_WIDTH = 120
+TERM_HEIGHT = 30
+TERM_CURSOR = "\33[42m"
+TERM_INPUT_FIELD = "\33[48;5;236m"
 
 # API links
 GATEWAY = r"wss://gateway.discord.gg/?v=9&encoding=json"
@@ -243,7 +249,8 @@ class Client:
         self._heartbeat_interval = None
         self._sequence = None
 
-        self.terminal: Terminal = Terminal()
+        self.terminal: Term = Term()
+        self.terminal.input_callback = self.process_user_commands
 
     def run(self, token: str) -> None:
         """
@@ -286,10 +293,10 @@ class Client:
 
                 print("Connection successful.\n")
                 self.terminal.clear_terminal()
-                threading.Thread(target=self.process_user_input, daemon=True).start()
                 await asyncio.gather(
                     self.process_heartbeat(),
-                    self.process_input()
+                    self.process_input(),
+                    self.terminal.start_listening()
                 )
 
         print("Attempting connect...")
@@ -321,7 +328,7 @@ class Client:
                 # if message is in current channel
                 if response["d"]["channel_id"] == Client.current_channel.id:
                     self.terminal.messages.append(Message.from_response(response["d"]))
-                    self.terminal.update_messages()
+                    self.terminal.partial_update()
 
             # opcode 1
             elif response["op"] == 1:
@@ -332,24 +339,13 @@ class Client:
                 with open("big2.json", "a", encoding="utf8") as file:
                     file.write(json.dumps(response, indent=2) + "\n\n")
 
-    def process_user_input(self) -> None:
-        """
-        Processes user input from terminal
-        """
-
-        self.terminal.jump_to_input()
-        try:
-            while True:
-                self.process_user_commands(input())
-                self.terminal.jump_to_input()
-                self.terminal.erase_after_cursor()
-        except EOFError:
-            pass  # don't care, just die
-
-    def process_user_commands(self, user_input) -> None:
+    def process_user_commands(self, user_input: list[str]) -> None:
         """
         Processes user inputted commands
         """
+
+        # make input string a string
+        user_input: str = "".join(user_input).strip(" ")
 
         # when user inputs // => that's a command
         if user_input[:2] == "//":
@@ -358,15 +354,15 @@ class Client:
 
             # help command
             if command[0] == "help":
-                self.terminal.log_message(f"{CLIENT_LOG} here's a list of instructions:{CS_RESET}")
+                self.terminal.print(f"{CLIENT_LOG} here's a list of instructions:{CS_RESET}")
                 for help_msg in CLIENT_HELP:
-                    self.terminal.log_message(f"\t{help_msg}")
+                    self.terminal.print(f"\t{help_msg}")
 
             # list guilds command
             elif command[0] == "list_g":
-                self.terminal.log_message(f"{CLIENT_LOG} list of guilds:{CS_RESET}")
+                self.terminal.print(f"{CLIENT_LOG} list of guilds:{CS_RESET}")
                 for idx, guild in enumerate(Client.guilds):
-                    self.terminal.log_message(f"\t[{idx}] {guild.name}")
+                    self.terminal.print(f"\t[{idx}] {guild.name}")
 
             # list channels in guild command
             elif command[0] == "list_c" and len(command) >= 2:
@@ -377,9 +373,9 @@ class Client:
                 if abs(index) > len(Client.guilds):
                     return
 
-                self.terminal.log_message(f"{CLIENT_LOG} list of channels:{CS_RESET}")
+                self.terminal.print(f"{CLIENT_LOG} list of channels:{CS_RESET}")
                 for idx, channel in enumerate(Client.guilds[index].channels):
-                    self.terminal.log_message(f"\t[{idx}] {channel.name}")
+                    self.terminal.print(f"\t[{idx}] {channel.name}")
 
             # pick channel in guild command
             elif command[0] == "pick_c" and len(command) >= 3:
@@ -395,7 +391,7 @@ class Client:
                     return
                 Client.current_channel = guild.channels[channel_idx]
 
-                self.terminal.log_message(
+                self.terminal.print(
                     f"{CLIENT_LOG} now viewing:{STYLE_ITALICS}{Client.current_channel.name}{CS_RESET}")
 
         # otherwise it's text or something, so make an API request
@@ -406,7 +402,7 @@ class Client:
                     http=f"{API}/channels/{Client.current_channel.id}/messages"
                 )
             else:
-                self.terminal.log_message(f"{CLIENT_LOG} you haven't chosen a channel! use '//help'{CS_RESET}")
+                self.terminal.print(f"{CLIENT_LOG} you haven't chosen a channel! use '//help'{CS_RESET}")
 
     async def process_heartbeat(self) -> None:
         """
@@ -458,203 +454,223 @@ class Client:
             return requests.get(http, headers={"Authorization": self._auth}, json=request)
 
 
-class Terminal:
+class Term:
     """
     Terminal rendering class
     """
 
-    terminal_lines = 28  # maximum amount of lines we can use
-    input_message = "[TYPE]: "
+    message_field: int = TERM_HEIGHT - 2
+    input_field: str = '[-]: '
 
     def __init__(self):
+        # terminal stuff
         self.messages: list[Message] = []
-        self.lines: list[str] = []
+        self.str_lines: list[str] = []
         self.line_offset: int = 0
-        self.cur_line: int = 0
+        self.current_line: int = 0
+
+        # terminal user input
+        self.input_callback: Callable = lambda x: None
+        self.user_input: list[str] = [" " for _ in range(TERM_WIDTH - len(self.input_field))]
+        self.user_cursor: int = 0
+
+    async def start_listening(self):
+        """
+        Start listening to user input
+        """
+
+        await listen_keyboard_manual(
+            on_press=self.key_press_callout, on_release=self.key_release_callout,
+            delay_second_char=0.05, lower=False
+        )
+
+    async def key_press_callout(self, key: str):
+        """
+        Callout message when any key is pressed
+        """
+
+        if key in printable:
+            self._insert_user_input(key)
+            self._update_input()
+        elif key == "space":
+            self._insert_user_input(" ")
+            self._update_input()
+        elif key == "backspace":
+            self._pop_user_input()
+            self._update_input()
+        elif key == "enter":
+            self.input_callback(self.user_input)
+            self._clear_user_input()
+            self._update_input()
+        elif key == "up":
+            self.change_line(-5)
+            self.update_all()
+        elif key == "down":
+            self.change_line(5)
+            self.update_all()
+        elif key == "left":
+            self._change_user_cursor(-1)
+            self._update_input()
+        elif key == "right":
+            self._change_user_cursor(1)
+            self._update_input()
+        elif key == "pageup":
+            self.change_line(-self.message_field)
+            self.update_all()
+        elif key == "pagedown":
+            self.change_line(self.message_field)
+            self.update_all()
+        else:
+            pass
+
+    async def key_release_callout(self, key: str):
+        """
+        Callout message when any key is released
+        """
+
+        pass
+
+    def change_line(self, offset: int):
+        """
+        Offsets the line pointer
+        """
+
+        if offset < 0:
+            self.line_offset = max(0, self.line_offset + offset)
+        else:
+            self.line_offset = min(len(self.str_lines) - 8, self.line_offset + offset)
 
     @staticmethod
-    def character_wrap(content: str, max_len: int = 100) -> str:
+    def character_wrap(string: str) -> str:
         """
-        Character wraps the content
-        :return: word wrapped content
+        Character wraps a string
         """
 
-        line_length = 0
-        new_content = ""
-        for idx, char in enumerate(content):
-            new_content += char
-            line_length += 1
+        line_len = 0
+        new_string = ""
+        for char in string:
+            new_string += char
+            line_len += 1
             if char == "\n":
-                line_length = 0
+                line_len = 0
+            if line_len >= TERM_WIDTH:
+                new_string += "\n"
+                line_len = 0
+        return new_string
 
-            # add `\n` when 1 line is bigger than max_len,
-            # and it's not the last character in the string
-            if line_length >= max_len and idx != (len(content)-1):
-                new_content += "\n"
-                line_length = 0
-        return new_content
-
-    def clear_terminal(self) -> None:
+    @staticmethod
+    def set_cursor(x: int, y: int, flush=True):
         """
-        Clears terminal
+        Sets the cursor position to the given out
         """
 
+        print(f"\33[{y};{x}H", end="", flush=flush)
+
+    def _clear_user_input(self):
+        """
+        Clears user input buffer
+        """
+
+        self.user_input = [" " for _ in range(TERM_WIDTH - len(self.input_field))]
+        self.user_cursor = 0
+
+    def _change_user_cursor(self, offset: int):
+        """
+        Offsets the user input cursor
+        """
+
+        if offset < 0:
+            self.user_cursor = max(0, self.user_cursor + offset)
+        else:
+            self.user_cursor = min(len(self.user_input), self.user_cursor - offset)
+
+    def _insert_user_input(self, key: str):
+        """
+        Inserts text into user input string
+        """
+
+        self.user_input[self.user_cursor] = key
+        self.user_cursor += 1
+
+    def _pop_user_input(self):
+        """
+        Basically backspace implementation
+        """
+
+        self.user_cursor -= 1
+        self.user_input[self.user_cursor] = " "
+
+    def _update_input(self):
+        """
+        Updates user input string
+        """
+
+        self.set_cursor(len(self.input_field)+1, self.message_field+2, False)
+        user_input = "".join(self.user_input[:self.user_cursor])
+        user_input += TERM_CURSOR + self.user_input[self.user_cursor] + TERM_INPUT_FIELD
+        user_input += "".join(self.user_input[self.user_cursor+1:])
+        print(f"\33[0K{TERM_INPUT_FIELD}{user_input}{CS_RESET}", end="", flush=True)
+
+    def clear_terminal(self, flush=True):
+        """
+        Clears the terminal
+        """
+
+        self.current_line = 0
         os.system("cls" if os.name == "nt" else "clear")
-        print(f"\33[{self.terminal_lines};0H", end="")
-        print(f"\33[100m{'='*120}{CS_RESET}\n{self.input_message}", end="")
-        print("\33[H", end="")
+        print(
+            f"\33[{self.message_field+1};0H"
+            f"{TERM_INPUT_FIELD}{'='*TERM_WIDTH}{CS_RESET}\n"
+            f"{TERM_INPUT_FIELD}{self.input_field}{' '*(TERM_WIDTH-len(self.input_field))}{CS_RESET}",
+            end="", flush=flush)
 
-        self.cur_line = 0
-
-    def next_page(self) -> None:
+    def partial_update(self):
         """
-        Clears the terminal, and offsets line offset variable
-        """
-
-        self.line_offset = max(self.line_offset + self.cur_line, len(self.lines) - self.terminal_lines//2)
-        self.clear_terminal()
-
-    @staticmethod
-    def apply_style(content: str, brackets: str, style: str):
-        """
-        Applies style to the content string
+        Partially updates the messages (prints missing ones)
         """
 
-        brs = "\\" + "\\".join(list(brackets))
-        regex = brs + r"(.*?)" + brs
-        for string in re.findall(regex, content):
-            content = content.replace(f"{brackets}{string}{brackets}", f"{style}{string}{CS_RESET}")
-        return content
+        start = self.line_offset + self.current_line
+        end = min(len(self.str_lines), start + self.message_field)
 
-    def format_message(self, message: Message) -> str:
+        # set cursor position to the next line
+        self.set_cursor(0, self.current_line + 1)
+
+        # if the amount of lines added overflows the message field
+        if end - self.line_offset > self.message_field:
+            # clamp it to limits of message field
+            end = start + self.message_field - self.current_line
+
+        # offset the current line by the amount of added newline
+        self.current_line += end - start
+
+        to_print = "\n".join(self.str_lines[start:end])
+        print(to_print, end="", flush=True)
+
+    def print(self, *values, sep=" "):
         """
-        Returns terminal formatted message
-        """
-
-        timestamp = message.timestamp.strftime("%H:%M:%S")
-        nickname = message.author.nickname
-        newline_offset = len(timestamp) + len(nickname) + 3
-
-        content = message.content
-
-        # apply styles
-        content = self.apply_style(content, "**", STYLE_BOLD)
-        content = self.apply_style(content, "*", STYLE_ITALICS)
-        content = self.apply_style(content, "__", STYLE_UNDERLINE)
-        content = self.apply_style(content, "--", STYLE_STRIKETHROUGH)
-        content = self.apply_style(content, "`", CODE_BLOCK)
-
-        # character wrap content
-        content = self.character_wrap(content, 120 - newline_offset - 2)
-        content = content.replace("\n", f"\n{STYLE_DARKEN}{'-'*newline_offset}>{CS_RESET} ")
-
-        return f"{STYLE_DARKEN}[{timestamp}]{CS_RESET} {nickname}{STYLE_DARKEN}>{CS_RESET} {content}"
-
-    def truncate_buffer(self, amount=50) -> None:
-        """
-        Truncates message buffer (when needed), to just not waste ram
+        Prints out a string to the terminal
+        :param values: values that will be printed
+        :param sep: separators used between values
         """
 
-        if len(self.messages) > amount:
-            self.line_offset -= len(self.messages) - amount
-            self.messages = self.messages[:-amount]
-            self._write_messages()
+        lines = self.character_wrap(sep.join(values)).split("\n")
+        self.str_lines += lines
 
-    def _write_messages(self):
-        """
-        Rewrites all messages to lines
-        """
+        self.partial_update()
 
-        self.lines.clear()
-        for message in self.messages:
-            self.lines += self.format_message(message).split("\n")
-
-    def jump_to_print(self) -> None:
+    def update_all(self):
         """
-        Jumps to position, where the messages are printed
+        Updates everything on the terminal
         """
 
-        print(f"\33[{self.cur_line+1};0H", end="", flush=True)
+        self.clear_terminal(False)
 
-    def jump_to_input(self) -> None:
-        """
-        Jumps to position, where the message is inputted
-        """
+        start = self.line_offset
+        end = min(len(self.str_lines), self.line_offset + self.message_field)
+        print("\33[H" + "\n".join(self.str_lines[start:end]), end="", flush=False)
+        self.current_line = end - start
 
-        print(f"\33[{self.terminal_lines+1};{len(self.input_message)+1}H", end="", flush=True)
-
-    @staticmethod
-    def store_cursor() -> None:
-        """
-        Stores cursor's current position
-        """
-
-        print("\33[s", end="", flush=True)
-
-    @staticmethod
-    def restore_cursor() -> None:
-        """
-        Restores cursor's previous position.
-        Uses SCO, because DEC did not work at all for some reason (using NU shell)
-        """
-
-        print("\33[u", end="", flush=True)
-
-    @staticmethod
-    def erase_after_cursor() -> None:
-        """
-        Erases everything after the cursor
-        """
-
-        print("\33[0J", end="", flush=True)
-
-    def log_message(self, message: str) -> None:
-        """
-        Logs your own message, cautious of user input stuff
-        """
-
-        self.lines += message.split("\n")
-        self.update_messages(False)
-
-    def update_all(self) -> None:
-        """
-        Re-prints all the messages to the terminal.
-        Uses SCO, because DEC did not work at all for some reason (using NU shell)
-        """
-
-        self.truncate_buffer()
-        self.clear_terminal()
-
-        self.line_offset = len(self.lines) - self.terminal_lines//2
-        self.cur_line = 0
-
-        self.update_messages()
-
-    def update_messages(self, read_last=True):
-        """
-        Updates terminal with new message
-        """
-
-        if read_last:
-            self.lines += self.format_message(self.messages[-1]).split("\n")
-
-        # when the message overflows to the next page
-        if self.cur_line >= (self.terminal_lines-1):
-            self.next_page()
-
-        self.store_cursor()
-        self.jump_to_print()
-
-        start = self.line_offset + self.cur_line
-        end = min(start + self.terminal_lines, len(self.lines)-1) + 1
-
-        self.cur_line += end - start
-        if self.cur_line >= self.terminal_lines:
-            end -= self.cur_line - self.terminal_lines + 1
-            self.cur_line = self.terminal_lines - 1
-
-        print("\n".join(self.lines[start:end]), end="\n" if self.cur_line < (self.terminal_lines-1) else "")
-        self.restore_cursor()
+        self._update_input()
 
 
 def main():
@@ -665,5 +681,25 @@ def main():
         raise Exception("No authentication token was given, use \33[1;31mpython3 main.py --help\33[0m to get help")
 
 
+def debug():
+    terminal = Term()
+
+    async def while_true():
+        while True:
+            await asyncio.sleep(0.1)
+
+    async def coro():
+        terminal.clear_terminal()
+        await asyncio.gather(
+            terminal.start_listening(),
+            while_true())
+
+    try:
+        asyncio.run(coro())
+    except KeyboardInterrupt:
+        print("Ded.")
+
+
 if __name__ == '__main__':
     main()
+    # debug()

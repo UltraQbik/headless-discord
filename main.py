@@ -190,6 +190,7 @@ class Channel:
         self.id: str = kwargs.get("id")
         self.name: str = kwargs.get("name")
         self.nsfw: bool = kwargs.get("nsfw")
+        self.position: int = kwargs.get("position")
 
 
 class Guild:
@@ -200,9 +201,19 @@ class Guild:
     def __init__(self, **kwargs):
         self.id: str = kwargs.get("id")
         self.name: str = kwargs.get("name")
-        self.channels: list[Channel] = [Channel(**x) for x in kwargs["channels"]]
+        self.channels: list[Channel] = []
         self.member_count: int = kwargs.get("member_count")
         # TODO: add threads
+
+        # append channels
+        for channel in kwargs.get("channels", []):
+            # skip any non-channel channels (categories are in channels for some reason)
+            if channel["type"] == 4:
+                continue
+            self.channels.append(Channel(**channel))
+
+        # sort them, because discord gives them in random order
+        self.channels.sort(key=lambda x: x.position)
 
     @staticmethod
     def from_response(response):
@@ -300,7 +311,8 @@ class Client:
             # ready
             if response["t"] == "READY":
                 Client.user = User(**(response["d"]["user"]))
-                Client.guilds = [Guild.from_response(x) for x in response["d"]["guilds"]]
+                for guild in response["d"]["guilds"]:
+                    Client.guilds.append(Guild.from_response(guild))
 
             # messages
             elif response["t"] == "MESSAGE_CREATE":

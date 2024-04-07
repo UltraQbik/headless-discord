@@ -17,7 +17,7 @@ API = r"https://discord.com/api/v9"
 
 # pings
 PING_HIGHLIGHT = "\33[36m"
-PING_ME_HIGHLIGHT = "\33[1;36m"
+PING_ME_HIGHLIGHT = "\33[96m"
 STYLE_DARKEN = "\33[90m"
 CODE_BLOCK = "\33[48;5;234m"
 
@@ -27,6 +27,14 @@ STYLE_BOLD = "\33[1m"
 STYLE_ITALICS = "\33[3m"
 STYLE_UNDERLINE = "\33[4m"
 STYLE_STRIKETHROUGH = "\33[9m"
+
+# client
+CLIENT_LOG = "\33[35m[CLIENT]\33[95m"
+CLIENT_HELP = [
+    "//help - prints out this message",
+    "//list_g - prints out list of all guilds",
+    f"//list_c {STYLE_ITALICS}guild{CS_RESET} - prints out channels in a guild",
+]
 
 # initialize ANSI escape codes
 # without this, they don't work
@@ -317,8 +325,11 @@ class Client:
 
         # when user inputs // => that's a command
         if user_input[:2] == "//":
-            command = user_input[2:]
-            self.terminal.log_message(command)
+            command = user_input[2:].split(" ")
+            if command[0] == "help":
+                self.terminal.log_message(f"{CLIENT_LOG} here's a list of instructions:{CS_RESET}")
+                for help_msg in CLIENT_HELP:
+                    self.terminal.log_message(f"\t{help_msg}")
 
         # otherwise it's text or something, so make an API request
         else:
@@ -327,6 +338,8 @@ class Client:
                     request={"content": user_input},
                     http=f"{API}/channels/{Client.current_channel.id}/messages"
                 )
+            else:
+                self.terminal.log_message(f"{CLIENT_LOG} you haven't chosen a channel! use '//help'{CS_RESET}")
 
     async def process_heartbeat(self) -> None:
         """

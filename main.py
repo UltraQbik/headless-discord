@@ -491,17 +491,13 @@ class Term:
 
         if key in printable:
             self._insert_user_input(key)
-            self._update_input()
         elif key == "space":
             self._insert_user_input(" ")
-            self._update_input()
         elif key == "backspace":
             self._pop_user_input()
-            self._update_input()
         elif key == "enter":
             self.input_callback(self.user_input)
             self._clear_user_input()
-            self._update_input()
         elif key == "up":
             self.change_line(-5)
             self.update_all()
@@ -510,10 +506,8 @@ class Term:
             self.update_all()
         elif key == "left":
             self._change_user_cursor(-1)
-            self._update_input()
         elif key == "right":
             self._change_user_cursor(1)
-            self._update_input()
         elif key == "pageup":
             self.change_line(-self.message_field)
             self.update_all()
@@ -521,7 +515,7 @@ class Term:
             self.change_line(self.message_field)
             self.update_all()
         else:
-            pass
+            self._insert_user_input(key)
 
     async def key_release_callout(self, key: str):
         """
@@ -573,6 +567,7 @@ class Term:
 
         self.user_input = [" " for _ in range(TERM_WIDTH - len(self.input_field))]
         self.user_cursor = 0
+        self._update_input()
 
     def _change_user_cursor(self, offset: int):
         """
@@ -582,7 +577,8 @@ class Term:
         if offset < 0:
             self.user_cursor = max(0, self.user_cursor + offset)
         else:
-            self.user_cursor = min(len(self.user_input), self.user_cursor - offset)
+            self.user_cursor = min(len(self.user_input)-1, self.user_cursor + offset)
+        self._update_input()
 
     def _insert_user_input(self, key: str):
         """
@@ -590,15 +586,17 @@ class Term:
         """
 
         self.user_input[self.user_cursor] = key
-        self.user_cursor += 1
+        self._change_user_cursor(1)
+        self._update_input()
 
     def _pop_user_input(self):
         """
         Basically backspace implementation
         """
 
-        self.user_cursor -= 1
+        self._change_user_cursor(-1)
         self.user_input[self.user_cursor] = " "
+        self._update_input()
 
     def _update_input(self):
         """

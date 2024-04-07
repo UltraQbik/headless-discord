@@ -58,6 +58,24 @@ parser.add_argument("--auth",
 args = parser.parse_args()
 
 
+def character_wrap(string: str, width=TERM_WIDTH) -> str:
+    """
+    Character wraps a string
+    """
+
+    line_len = 0
+    new_string = ""
+    for char in string:
+        new_string += char
+        line_len += 1
+        if char == "\n":
+            line_len = 0
+        if line_len >= width:
+            new_string += "\n"
+            line_len = 0
+    return new_string
+
+
 def apply_style(content: str, brackets: str, style: str):
     """
     Applies style to the content string
@@ -85,11 +103,11 @@ def format_message(message) -> str:
     content = apply_style(content, "**", STYLE_BOLD)
     content = apply_style(content, "*", STYLE_ITALICS)
     content = apply_style(content, "__", STYLE_UNDERLINE)
-    content = apply_style(content, "--", STYLE_STRIKETHROUGH)
+    content = apply_style(content, "~~", STYLE_STRIKETHROUGH)
     content = apply_style(content, "`", CODE_BLOCK)
 
     # character wrap content
-    content = Term.character_wrap(content)
+    content = character_wrap(content, TERM_WIDTH - newline_offset - 2)
     content = content.replace("\n", f"\n{STYLE_DARKEN}{'-' * newline_offset}>{CS_RESET} ")
 
     return f"{STYLE_DARKEN}[{timestamp}]{CS_RESET} {nickname}{STYLE_DARKEN}>{CS_RESET} {content}"
@@ -574,24 +592,6 @@ class Term:
             self.line_offset = max(0, self.line_offset + offset)
         else:
             self.line_offset = min(len(self.str_lines) - 8, self.line_offset + offset)
-
-    @staticmethod
-    def character_wrap(string: str) -> str:
-        """
-        Character wraps a string
-        """
-
-        line_len = 0
-        new_string = ""
-        for char in string:
-            new_string += char
-            line_len += 1
-            if char == "\n":
-                line_len = 0
-            if line_len >= TERM_WIDTH:
-                new_string += "\n"
-                line_len = 0
-        return new_string
 
     @staticmethod
     def set_cursor(x: int, y: int, flush=True):

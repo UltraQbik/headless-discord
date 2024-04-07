@@ -524,10 +524,7 @@ class Term:
         elif key == "pagedown":
             self.change_line(self.message_field)
             self.update_all()
-        elif key == "home":
-            self.print("hello")
         else:
-            self.print(*[f"cum {x}\n" for x in range(69)], sep="")
             pass
 
     async def key_release_callout(self, key: str):

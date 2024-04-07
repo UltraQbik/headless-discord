@@ -9,6 +9,7 @@ import websockets
 from typing import Any
 from random import random
 from datetime import datetime
+from sshkeyboard import listen_keyboard
 
 
 # API links
@@ -34,6 +35,7 @@ CLIENT_HELP = [
     "//help - prints out this message",
     "//list_g - prints out list of all guilds",
     f"//list_c {STYLE_ITALICS}guild{CS_RESET} - prints out channels in a guild",
+    f"//pick_c {STYLE_ITALICS}guild{CS_RESET} {STYLE_ITALICS}channel{CS_RESET} - selects a channel to view",
 ]
 
 # initialize ANSI escape codes
@@ -378,6 +380,23 @@ class Client:
                 self.terminal.log_message(f"{CLIENT_LOG} list of channels:{CS_RESET}")
                 for idx, channel in enumerate(Client.guilds[index].channels):
                     self.terminal.log_message(f"\t[{idx}] {channel.name}")
+
+            # pick channel in guild command
+            elif command[0] == "pick_c" and len(command) >= 3:
+                try:
+                    guild_idx = int(command[1])
+                    channel_idx = int(command[2])
+                except ValueError:
+                    return
+                if abs(guild_idx) > len(Client.guilds):
+                    return
+                guild = Client.guilds[guild_idx]
+                if abs(channel_idx) > len(guild.channels):
+                    return
+                Client.current_channel = guild.channels[channel_idx]
+
+                self.terminal.log_message(
+                    f"{CLIENT_LOG} now viewing:{STYLE_ITALICS}{Client.current_channel.name}{CS_RESET}")
 
         # otherwise it's text or something, so make an API request
         else:

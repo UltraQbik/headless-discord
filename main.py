@@ -376,7 +376,6 @@ class Client:
 
                 self.terminal.print(f"{CLIENT_LOG} list of channels:{CS_RESET}")
                 for idx, channel in enumerate(Client.guilds[index].channels):
-                    if channel.type
                     self.terminal.print(f"\t[{idx}] {channel.name}")
 
             # pick channel in guild command

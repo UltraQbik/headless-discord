@@ -353,7 +353,7 @@ class Client:
 
         while True:
             response = await self.get_request()
-            self._sequence = response["s"]
+            self._sequence = response["s"] if response["s"] else self._sequence
 
             # ready
             if response["t"] == "READY":
@@ -371,6 +371,9 @@ class Client:
             # opcode 1
             elif response["op"] == 1:
                 await self.send_heartbeat()
+
+            elif response["op"] == 9:
+                self.terminal.print(f"{CLIENT_LOG} disconnected...")
 
             # anything else
             else:
@@ -455,7 +458,7 @@ class Client:
 
         # continue the heartbeat
         while self._socket.open:
-            await asyncio.sleep(self._heartbeat_interval)
+            await asyncio.sleep(self._heartbeat_interval / 1000)
             await self.send_heartbeat()
 
     async def send_heartbeat(self) -> None:

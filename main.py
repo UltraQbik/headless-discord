@@ -5,9 +5,10 @@ import asyncio
 import requests
 import argparse
 import websockets
-from typing import Any
+from typing import Any, Callable
 from random import random
 from datetime import datetime
+from string import printable
 from sshkeyboard import listen_keyboard_manual
 
 
@@ -466,6 +467,7 @@ class Term:
         self.current_line: int = 0
 
         # terminal user input
+        self.input_callout: Callable = lambda x: None
         self.user_input: str = ""
 
     async def start_listening(self):
@@ -483,27 +485,55 @@ class Term:
         Callout message when any key is pressed
         """
 
-        print(key, "pressed")
+        if key in printable:
+            self.user_input += key
+        elif key == "space":
+            self.user_input += " "
+        elif key == "backspace":
+            self.user_input = self.user_input[:-1]
+        elif key == "enter":
+            self.input_callout(self.user_input)
+        elif key == "up":
+            self.change_line(-5)
+        elif key == "down":
+            self.change_line(5)
+        elif key == "pageup":
+            self.change_line(-self.message_field)
+        elif key == "pagedown":
+            self.change_line(self.message_field)
+        else:
+            pass
 
     async def key_release_callout(self, key: str):
         """
         Callout message when any key is released
         """
 
-        print(key, "depressed")
+        pass
 
-    def clear_terminal(self):
+    def change_line(self, offset: int):
+        """
+        Offsets the line pointer
+        """
+
+        if offset < 0:
+            self.line_offset = max(0, self.line_offset + offset)
+        else:
+            self.line_offset = min(0, self.line_offset + offset)
+
+    def clear_terminal(self, flush=True):
         """
         Clears the terminal
         """
 
+        self.current_line = 0
         os.system("cls" if os.name == "nt" else "clear")
         print(
             f"\33[{self.message_field};0H"
             f"\33[48;5;236m{'='*120}\n"
             f"{'[-]: ': <120}{CS_RESET}"
             f"\33[H",
-            end="", flush=True)
+            end="", flush=flush)
 
 
 def main():

@@ -521,6 +521,32 @@ class Term:
         else:
             self.line_offset = min(0, self.line_offset + offset)
 
+    @staticmethod
+    def character_wrap(string: str) -> str:
+        """
+        Character wraps a string
+        """
+
+        line_len = 0
+        new_string = ""
+        for char in string:
+            new_string += char
+            line_len += 1
+            if char == "\n":
+                line_len = 0
+            if line_len >= 120:
+                new_string += "\n"
+                line_len = 0
+        return new_string
+
+    @staticmethod
+    def set_cursor(x: int, y: int, flush=True):
+        """
+        Sets the cursor position to the given out
+        """
+
+        print(f"\33[{y};{x}H", flush=flush)
+
     def clear_terminal(self, flush=True):
         """
         Clears the terminal
@@ -534,6 +560,18 @@ class Term:
             f"{'[-]: ': <120}{CS_RESET}"
             f"\33[H",
             end="", flush=flush)
+
+    def print(self, *values, sep=" ", end="\n", flush=False):
+        """
+        Prints out a string to the terminal
+        :param values: values that will be printed
+        :param sep: separators used between values
+        :param end: what to put at the end of the string
+        :param flush: forcibly flush content
+        """
+
+        lines = self.character_wrap(sep.join(values) + end).split("\n")
+        self.str_lines += lines
 
 
 def main():
@@ -552,6 +590,7 @@ def debug():
             await asyncio.sleep(0.1)
 
     async def coro():
+        terminal.clear_terminal()
         await asyncio.gather(
             terminal.start_listening(),
             while_true())

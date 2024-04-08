@@ -60,17 +60,30 @@ args = parser.parse_args()
 
 def character_wrap(string: str, width=TERM_WIDTH) -> str:
     """
-    Character wraps a string
+    Character wraps a string. ignores escape sequences
     """
 
+    is_esc = False
     line_len = 0
     new_string = ""
-    for char in string:
+    for idx, char in enumerate(string):
         new_string += char
-        line_len += 1
+        line_len += 1 if not is_esc else 0
+
+        # newline
         if char == "\n":
             line_len = 0
-        if line_len >= width:
+
+        # escape character
+        elif char == "\33":
+            is_esc = True
+
+        # when we found end of escape sequence
+        elif char in "mHKJ" and is_esc:
+            is_esc = False
+            line_len -= 1
+
+        elif line_len >= width and idx < len(string) and string[idx+1] != "\n":
             new_string += "\n"
             line_len = 0
     return new_string
@@ -95,7 +108,6 @@ def format_message(message) -> str:
 
     timestamp = message.timestamp.strftime("%H:%M:%S")
     nickname = message.author.nickname
-    newline_offset = len(timestamp) + len(nickname) + 3
 
     content = message.content
 
@@ -106,11 +118,7 @@ def format_message(message) -> str:
     content = apply_style(content, "~~", STYLE_STRIKETHROUGH)
     content = apply_style(content, "`", CODE_BLOCK)
 
-    # character wrap content
-    content = character_wrap(content, TERM_WIDTH - newline_offset - 2)
-    content = content.replace("\n", f"\n{STYLE_DARKEN}{'-' * newline_offset}>{CS_RESET} ")
-
-    return f"{STYLE_DARKEN}[{timestamp}]{CS_RESET} {nickname}{STYLE_DARKEN}>{CS_RESET} {content}"
+    return character_wrap(f"{STYLE_DARKEN}[{timestamp}]{CS_RESET} {nickname}{STYLE_DARKEN}>{CS_RESET} {content}")
 
 
 class Member:
@@ -740,8 +748,20 @@ def debug():
         while True:
             await asyncio.sleep(0.1)
 
+    def input_callback(user_input: list[str]):
+        user_input = "".join(user_input).strip(" ")
+
+        author = {"username": "godly"}
+        message = Message(
+            content=user_input * 2,
+            timestamp=datetime.now().isoformat(),
+            author=author, mentions=[])
+
+        terminal.print(format_message(message))
+
     async def coro():
         terminal.clear_terminal()
+        terminal.input_callback = input_callback
         await asyncio.gather(
             terminal.start_listening(),
             while_true())

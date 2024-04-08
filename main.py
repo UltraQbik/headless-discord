@@ -421,13 +421,13 @@ class Client:
 
             # help command
             if command[0] == "help":
-                self.terminal.print(f"{CLIENT_LOG} here's a list of instructions:{CS_RESET}")
+                self.terminal.log(f"here's a list of instructions:")
                 for help_msg in CLIENT_HELP:
                     self.terminal.print(f"\t{help_msg}")
 
             # list guilds command
             elif command[0] == "list_g":
-                self.terminal.print(f"{CLIENT_LOG} list of guilds:{CS_RESET}")
+                self.terminal.log(f"list of guilds:")
                 for idx, guild in enumerate(Client.guilds):
                     self.terminal.print(f"\t[{idx}] {guild.name}")
 
@@ -440,7 +440,7 @@ class Client:
                 if abs(index) > len(Client.guilds):
                     return
 
-                self.terminal.print(f"{CLIENT_LOG} list of channels:{CS_RESET}")
+                self.terminal.log(f"list of channels:")
                 for idx, channel in enumerate(Client.guilds[index].channels):
                     self.terminal.print(f"\t[{idx}] {channel.name}")
 
@@ -458,8 +458,24 @@ class Client:
                     return
 
                 Client.current_channel = guild.channels[channel_idx]
-                self.terminal.print(
-                    f"{CLIENT_LOG} now viewing:{STYLE_ITALICS}{Client.current_channel.name}{CS_RESET}")
+
+                # fetch channel messages
+                try:
+                    response = self.send_api_request(
+                        rtype="GET", request=None,
+                        http=f"{API}/channels/{Client.current_channel.id}/messages?limit=50")
+                    messages = response.json()
+                except requests.exceptions.JSONDecodeError:
+                    self.terminal.log("error when loading messages")
+                    messages = []
+                messages.sort(key=lambda x: datetime.fromisoformat(x['timestamp']))
+
+                # append them to terminal
+                self.terminal.messages += [
+                    Message.from_response(x) for x in messages
+                ]
+
+                self.terminal.log(f"now viewing:{STYLE_ITALICS}{Client.current_channel.name}")
 
         # otherwise it's text or something, so make an API request
         else:
@@ -469,7 +485,7 @@ class Client:
                     http=f"{API}/channels/{Client.current_channel.id}/messages"
                 )
             else:
-                self.terminal.print(f"{CLIENT_LOG} you haven't chosen a channel! use '//help'{CS_RESET}")
+                self.terminal.log(f"you haven't chosen a channel! use '//help'")
 
     async def process_heartbeat(self) -> None:
         """
@@ -725,6 +741,20 @@ class Term:
         """
 
         lines = character_wrap(sep.join(map(str, values))).split("\n")
+        self.str_lines += lines
+
+        self.partial_update()
+
+    def log(self, *values, sep=""):
+        """
+        Prints out strings to the terminal, client logging
+        :param values: values that will be printed
+        :param sep: separator that will be put between values
+        """
+
+        lines = character_wrap(
+            sep.join(map(lambda x: f"{CLIENT_LOG} {x}{CS_RESET}", values))
+        ).split("\n")
         self.str_lines += lines
 
         self.partial_update()

@@ -532,6 +532,9 @@ class Term:
     def __init__(self):
         # terminal stuff
         self.messages: list[Message] = []
+        self.message_ptr: int = 0
+
+        # terminal buffering
         self.str_lines: list[str] = []
         self.line_offset: int = 0
         self.current_line: int = 0
@@ -671,22 +674,31 @@ class Term:
             f"{TERM_INPUT_FIELD}{self.input_field}{' '*(TERM_WIDTH-len(self.input_field))}{CS_RESET}",
             end="", flush=flush)
 
-    def _print_messages(self):
+    def _write_all(self):
         """
         Prints out all messages from message stack
         """
 
-        while self.messages:
-            message = self.messages.pop()
-            formatted_message = format_message(message)
-            self.print(formatted_message)
+        self.str_lines.clear()
+        for message in self.messages:
+            self.str_lines += format_message(message).split("\n")
+        self.message_ptr = len(self.messages)
+
+    def _write_new(self):
+        """
+        Writes new messages to the buffer
+        """
+
+        for message in self.messages[self.message_ptr:]:
+            self.str_lines += format_message(message).split("\n")
+        self.message_ptr = len(self.messages)
 
     def partial_update(self):
         """
         Partially updates the messages (prints missing ones)
         """
 
-        self._print_messages()
+        self._write_new()
 
         start = self.line_offset + self.current_line
         end = min(len(self.str_lines), start + self.message_field)
@@ -723,7 +735,6 @@ class Term:
         """
 
         self.clear_terminal(False)
-        self._print_messages()
 
         start = self.line_offset
         end = min(len(self.str_lines), self.line_offset + self.message_field)

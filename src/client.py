@@ -101,6 +101,7 @@ class Client:
                 # if message is in current channel
                 if response["d"]["channel_id"] == Client.current_channel.id:
                     message = Message.from_response(response["d"])
+                    message.format_for_user(Client.user)
                     self.terminal.print(format_message(message))
                     self.terminal.update_onscreen()
 
@@ -183,8 +184,9 @@ class Client:
                 self.terminal.log(f"now viewing:{STYLE_ITALICS}{Client.current_channel.name}")
                 # print to terminal
                 for message in messages:
-                    self.terminal.print(
-                        format_message(Message.from_response(message)))
+                    msg = Message.from_response(message)
+                    msg.format_for_user(Client.user)
+                    self.terminal.print(format_message(msg))
 
             elif command[0] == "exit":
                 await self._socket.close()

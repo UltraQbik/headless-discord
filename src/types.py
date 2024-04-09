@@ -47,7 +47,26 @@ class Channel:
     """
 
     def __init__(self, **kwargs):
-        pass
+        self.id: str = kwargs.get("id")
+        self.guild: Guild | None = Client.known_guilds.get(kwargs.get("guild_id"))
+        self.type: int = kwargs.get("type")
+        self.name: str | None = kwargs.get("name")
+        self.position: int = kwargs.get("position", 0)
+        self.permissions: str | None = kwargs.get("permissions")
+
+    @staticmethod
+    def from_response(response: dict):
+        """
+        Make channel object from any response
+        """
+
+        return Channel(
+            id=response["id"],  # always present
+            type=response["type"],  # always present
+            name=response.get("name"),  # may be present, nullable
+            position=response.get("position", 0),  # may be present
+            permissions=response.get("permissions")  # may be present
+        )
 
 
 class Guild:
@@ -74,8 +93,19 @@ class Guild:
             roles.append(Role(**raw_role))
 
         return Guild(
-            id=response["id"],
-            name=response["name"],
-            description=response["description"],
-            roles=roles
+            id=response["id"],  # always present
+            name=response["name"],  # always present
+            description=response["description"],  # always present, nullable
+            roles=roles  # always present
         )
+
+
+class Client(User):
+    """
+    Client user
+    """
+
+    known_guilds: dict[str, Guild] = {}
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)

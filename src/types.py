@@ -130,6 +130,15 @@ class Role:
         self.permissions: Permissions = Permissions(int(kwargs.get("permissions")))
 
 
+class Attachment:
+    """
+    Attachment object class
+    """
+
+    def __init__(self, **kwargs):
+        pass
+
+
 class Member:
     """
     Member class

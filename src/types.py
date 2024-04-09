@@ -142,6 +142,15 @@ class Attachment:
         self.url: str = kwargs.get("url")
 
 
+class Embed:
+    """
+    Embed object class
+    """
+
+    def __init__(self, **kwargs):
+        pass
+
+
 class Member:
     """
     Member class

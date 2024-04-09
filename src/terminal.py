@@ -222,6 +222,10 @@ class Term:
         Updates lines that are currently on screen. Flushes the buffer
         """
 
+        # if pointer is at the end of the message field, return
+        if self.line_ptr >= self.message_field:
+            return
+
         start = self.line_ptr + self.line_offset
         end = min(start + self.message_field, len(self.lines))
 
@@ -256,7 +260,9 @@ class Term:
         """
 
         # append new message to the terminal
-        self.messages.append(TerminalMessage(content=f"{CLIENT_LOG} {value}{CS_RESET}"))
+        content = f"{CLIENT_LOG} {value}{CS_RESET}".replace(CS_RESET, f"{CS_RESET}\33[95m")
+        content += CS_RESET
+        self.messages.append(TerminalMessage(content=content))
         self.lines += self.messages[-1].lines()
 
         # update onscreen messages

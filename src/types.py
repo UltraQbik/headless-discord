@@ -99,6 +99,7 @@ class Member:
 
     def __init__(self, **kwargs):
         self.user: User = kwargs.get("user")
+        self.guild: Guild | None = Client.known_guilds.get(kwargs.get("guild_id"))
         self.nick: str | None = kwargs.get("nick")
         self.roles: list[Role] = kwargs.get("roles", list())
         self.permissions: Permissions | None = Permissions(

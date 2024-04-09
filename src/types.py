@@ -258,7 +258,7 @@ class Message:
         self.edited_timestamp: datetime = datetime.fromisoformat(
             kwargs.get("edited_timestamp")) if kwargs.get("edited_timestamp") else None
         self.mention_everyone: bool = kwargs.get("mention_everyone", False)
-        self.mentions: list[User] = kwargs.get("mentions")
-        self.mention_roles: list[Role] = kwargs.get("mention_roles")
-        self.attachments: list = kwargs.get("attachments")  # e
-        self.embeds: list = kwargs.get("embeds")  # e
+        self.mentions: list[User] = kwargs.get("mentions", list())
+        self.mention_roles: list[Role] = kwargs.get("mention_roles", list())
+        self.attachments: list[Attachment] = kwargs.get("attachments", list())
+        self.embeds: list = kwargs.get("embeds", list())  # e

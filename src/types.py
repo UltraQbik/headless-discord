@@ -113,8 +113,11 @@ class User:
     def __init__(self, **kwargs):
         self.id: str = kwargs.get("id")
         self.username: str = kwargs.get("username")
+        # self.discriminator: str = kwargs.get("discriminator")
         self.global_name: str | None = kwargs.get("global_name")
         self.bot: bool = kwargs.get("bot", False)
+
+        # discriminator will not be added for now, as it's been basically deprecated by discord
 
 
 class Channel:

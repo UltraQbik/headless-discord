@@ -136,7 +136,10 @@ class Attachment:
     """
 
     def __init__(self, **kwargs):
-        pass
+        self.id: str = kwargs.get("id")
+        self.filename: str = kwargs.get("filename")
+        self.size: int = kwargs.get("size")
+        self.url: str = kwargs.get("url")
 
 
 class Member:

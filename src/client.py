@@ -6,6 +6,7 @@ from typing import Any
 from random import random
 from .types import *
 from .terminal import Term
+from .formatting import format_message
 
 
 class Client:
@@ -99,7 +100,8 @@ class Client:
             elif response["t"] == "MESSAGE_CREATE":
                 # if message is in current channel
                 if response["d"]["channel_id"] == Client.current_channel.id:
-                    self.terminal.messages.append(Message.from_response(response["d"]))
+                    message = Message.from_response(response["d"])
+                    self.terminal.print(format_message(message))
                     self.terminal.update_onscreen()
 
             # opcode 1
@@ -178,12 +180,11 @@ class Client:
                     messages = []
                 messages.sort(key=lambda x: datetime.fromisoformat(x['timestamp']))
 
-                # append them to terminal
-                self.terminal.messages += [
-                    Message.from_response(x) for x in messages
-                ]
-
                 self.terminal.log(f"now viewing:{STYLE_ITALICS}{Client.current_channel.name}")
+                # print to terminal
+                for message in messages:
+                    self.terminal.print(
+                        format_message(Message.from_response(message)))
 
             elif command[0] == "exit":
                 await self._socket.close()

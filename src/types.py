@@ -1,7 +1,62 @@
 import re
+from enum import Flag, auto
 
 from .constants import *
 from datetime import datetime
+
+
+class Permissions(Flag):
+    """
+    Permissions flag enum. Oh god, there are so many
+    """
+
+    CREATE_INSTANT_INVITE = auto()
+    KICK_MEMBERS = auto()
+    BAN_MEMBERS = auto()
+    ADMINISTRATOR = auto()
+    MANAGE_CHANNELS = auto()
+    MANAGE_GUILD = auto()
+    ADD_REACTIONS = auto()
+    VIEW_AUDIT_LOG = auto()
+    PRIORITY_SPEAKER = auto()
+    STREAM = auto()
+    VIEW_CHANNEL = auto()
+    SEND_MESSAGES = auto()
+    SEND_TTS_MESSAGES = auto()
+    MANAGE_MESSAGES = auto()
+    EMBED_LINKS = auto()
+    ATTACH_FILES = auto()
+    READ_MESSAGE_HISTORY = auto()
+    MENTION_EVERYONE = auto()
+    USE_EXTERNAL_EMOJIS = auto()
+    VIEW_GUILD_INSIGHTS = auto()
+    CONNECT = auto()
+    SPEAK = auto()
+    MUTE_MEMBERS = auto()
+    DEAFEN_MEMBERS = auto()
+    MOVE_MEMBERS = auto()
+    USE_VAD = auto()
+    CHANGE_NICKNAME = auto()
+    MANAGE_NICKNAMES = auto()
+    MANAGE_ROLES = auto()
+    MANAGE_WEBHOOKS = auto()
+    MANAGE_GUILD_EXPRESSIONS = auto()
+    USE_APPLICATION_COMMANDS = auto()
+    REQUEST_TO_SPEAK = auto()
+    MANAGE_EVENTS = auto()
+    MANAGE_THREADS = auto()
+    CREATE_PUBLIC_THREADS = auto()
+    CREATE_PRIVATE_THREADS = auto()
+    USE_EXTERNAL_STICKERS = auto()
+    SEND_MESSAGES_IN_THREADS = auto()
+    USE_EMBEDDED_ACTIVITIES = auto()
+    MODERATE_MEMBERS = auto()
+    VIEW_CREATOR_MONETIZATION_ANALYTICS = auto()
+    USE_SOUNDBOARD = auto()
+    CREATE_GUILD_EXPRESSIONS = auto()
+    CREATE_EVENTS = auto()
+    USE_EXTERNAL_SOUNDS = auto()
+    SEND_VOICE_MESSAGES = auto()
 
 
 class Role:
@@ -14,7 +69,7 @@ class Role:
         self.name: str = kwargs.get("name")
         self.color: int = kwargs.get("color")
         self.position: int = kwargs.get("position")
-        self.permissions: str = kwargs.get("permissions")
+        self.permissions: Permissions = Permissions(int(kwargs.get("permissions")))
 
 
 class Member:
@@ -26,7 +81,8 @@ class Member:
         self.user: User = kwargs.get("user")
         self.nick: str | None = kwargs.get("nick")
         self.roles: list[Role] = kwargs.get("roles", list())
-        self.permissions: str | None = kwargs.get("permissions")
+        self.permissions: Permissions | None = Permissions(
+            int(kwargs.get("permissions"))) if "permissions" in kwargs else None
 
 
 class User:
@@ -52,7 +108,8 @@ class Channel:
         self.type: int = kwargs.get("type")
         self.name: str | None = kwargs.get("name")
         self.position: int = kwargs.get("position", 0)
-        self.permissions: str | None = kwargs.get("permissions")
+        self.permissions: Permissions | None = Permissions(
+            int(kwargs.get("permissions"))) if "permissions" in kwargs else None
 
     @staticmethod
     def from_response(response: dict):

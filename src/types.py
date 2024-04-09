@@ -190,3 +190,12 @@ class Client(User):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+
+class Message:
+    """
+    Message class
+    """
+
+    def __init__(self, **kwargs):
+        pass

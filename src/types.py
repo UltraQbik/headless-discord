@@ -142,15 +142,6 @@ class Attachment:
         self.url: str = kwargs.get("url")
 
 
-class Embed:
-    """
-    Embed object class
-    """
-
-    def __init__(self, **kwargs):
-        pass
-
-
 class Member:
     """
     Member class
@@ -270,4 +261,4 @@ class Message:
         self.mentions: list[User] = kwargs.get("mentions", list())
         self.mention_roles: list[Role] = kwargs.get("mention_roles", list())
         self.attachments: list[Attachment] = kwargs.get("attachments", list())
-        self.embeds: list = kwargs.get("embeds", list())  # e
+        # self.embeds: list = kwargs.get("embeds", list())  # e

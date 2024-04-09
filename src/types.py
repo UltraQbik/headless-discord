@@ -187,6 +187,7 @@ class Client(User):
     """
 
     known_guilds: dict[str, Guild] = {}
+    known_channels: dict[str, Channel] = {}
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -198,4 +199,16 @@ class Message:
     """
 
     def __init__(self, **kwargs):
-        pass
+        self.id: str = kwargs.get("id")
+        self.channel: Channel | None = Client.known_guilds.get(kwargs.get("channel_id"))
+        self.author: User = kwargs.get("author")
+        self.content: str = kwargs.get("content")
+        self.type = kwargs.get("type")  # e
+        self.timestamp: datetime = datetime.fromisoformat(kwargs.get("timestamp"))
+        self.edited_timestamp: datetime = datetime.fromisoformat(
+            kwargs.get("edited_timestamp")) if kwargs.get("edited_timestamp") else None
+        self.mention_everyone: bool = kwargs.get("mention_everyone", False)
+        self.mentions: list[User] = kwargs.get("mentions")
+        self.mention_roles: list[Role] = kwargs.get("mention_roles")
+        self.attachments: list = kwargs.get("attachments")  # e
+        self.embeds: list = kwargs.get("embeds")  # e

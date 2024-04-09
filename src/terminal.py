@@ -7,10 +7,28 @@ from .constants import *
 from .types import Message
 from .formatting import *
 
-
 # initialize ANSI escape codes
 # without this, they don't work
 os.system("")
+
+
+class TerminalMessage:
+    """
+    Message that the terminal prints
+    """
+
+    def __init__(self, **kwargs):
+        self.content: str | None = kwargs.get("content")
+
+    def __str__(self) -> str:
+        return character_wrap(self.content)
+
+    def lines(self) -> list[str]:
+        """
+        Returns list of lines in message
+        """
+
+        return self.__str__().split("\n")
 
 
 class Term:
@@ -23,13 +41,11 @@ class Term:
 
     def __init__(self):
         # terminal stuff
-        self.messages: list[Message] = []
-        self.message_ptr: int = 0
-
-        # terminal buffering
-        self.str_lines: list[str] = []
-        self.line_offset: int = 0
-        self.current_line: int = 0
+        self.messages: list[TerminalMessage] = []       # terminal rendered messages
+        self.print_buffer: str = ""                     # terminal buffer
+        self.lines: list[str] = []                      # terminal lines
+        self.line_offset: int = 0                       # offset to rendered lines
+        self.line_ptr: int = 0                          # current line
 
         # terminal user input
         self.input_callback = None
@@ -62,20 +78,16 @@ class Term:
             self._clear_user_input()
         elif key == "up":
             self.change_line(-5)
-            self.update_all()
         elif key == "down":
             self.change_line(5)
-            self.update_all()
         elif key == "left":
             self._change_user_cursor(-1)
         elif key == "right":
             self._change_user_cursor(1)
         elif key == "pageup":
             self.change_line(-self.message_field)
-            self.update_all()
         elif key == "pagedown":
             self.change_line(self.message_field)
-            self.update_all()
         else:
             self._insert_user_input(key)
 
@@ -91,18 +103,35 @@ class Term:
         Offsets the line pointer
         """
 
+        old = self.line_offset
         if offset < 0:
             self.line_offset = max(0, self.line_offset + offset)
         else:
-            self.line_offset = min(len(self.str_lines) - 8, self.line_offset + offset)
+            self.line_offset = min(len(self.lines) - 8, self.line_offset + offset)
+        if old != self.line_offset:
+            self.clear_message_field(flush=False)
+            self.update_onscreen()
 
-    @staticmethod
-    def set_cursor(x: int, y: int, flush=True):
+    def _print(self, value):
+        """
+        Internal print method, adds value to buffer
+        """
+
+        self.print_buffer += value.__str__()
+
+    def refresh(self):
+        """
+        Prints out terminal print buffer
+        """
+
+        print(self.print_buffer, end="", flush=True)
+
+    def set_cursor(self, x: int, y: int):
         """
         Sets the cursor position to the given out
         """
 
-        print(f"\33[{y};{x}H", end="", flush=flush)
+        self._print(f"\33[{y};{x}H")
 
     def _clear_user_input(self):
         """
@@ -121,7 +150,7 @@ class Term:
         if offset < 0:
             self.user_cursor = max(0, self.user_cursor + offset)
         else:
-            self.user_cursor = min(len(self.user_input)-1, self.user_cursor + offset)
+            self.user_cursor = min(len(self.user_input) - 1, self.user_cursor + offset)
         self._update_input()
 
     def _insert_user_input(self, key: str):
@@ -147,10 +176,10 @@ class Term:
         Updates user input string
         """
 
-        self.set_cursor(len(self.input_field)+1, self.message_field+2, False)
+        print(f"\33[{self.message_field + 2};{len(self.input_field) + 1}H", end="", flush=False)
         user_input = "".join(self.user_input[:self.user_cursor])
         user_input += TERM_CURSOR + self.user_input[self.user_cursor] + TERM_INPUT_FIELD
-        user_input += "".join(self.user_input[self.user_cursor+1:])
+        user_input += "".join(self.user_input[self.user_cursor + 1:])
         print(f"\33[0K{TERM_INPUT_FIELD}{user_input}{CS_RESET}", end="", flush=True)
 
     def clear_terminal(self, flush=True):
@@ -158,93 +187,77 @@ class Term:
         Clears the terminal
         """
 
-        self.current_line = 0
         os.system("cls" if os.name == "nt" else "clear")
-        print(
-            f"\33[{self.message_field+1};0H"
-            f"{TERM_INPUT_FIELD}{'='*TERM_WIDTH}{CS_RESET}\n"
-            f"{TERM_INPUT_FIELD}{self.input_field}{' '*(TERM_WIDTH-len(self.input_field))}{CS_RESET}",
-            end="", flush=flush)
+        self._print(
+            f"\33[{self.message_field + 1};0H"
+            f"{TERM_INPUT_FIELD}{'=' * TERM_WIDTH}{CS_RESET}\n"
+            f"{TERM_INPUT_FIELD}{self.input_field}{' ' * (TERM_WIDTH - len(self.input_field))}{CS_RESET}")
+        if flush:
+            self.refresh()
 
-    def _write_all(self):
+    def clear_message_field(self, flush=True):
         """
-        Prints out all messages from message stack
-        """
-
-        self.str_lines.clear()
-        for message in self.messages:
-            self.str_lines += format_message(message).split("\n")
-        self.message_ptr = len(self.messages)
-
-    def _write_new(self):
-        """
-        Writes new messages to the buffer
+        Clears just the message field, without reprinting the entire frame. Flushes the buffer
         """
 
-        for message in self.messages[self.message_ptr:]:
-            self.str_lines += format_message(message).split("\n")
-        self.message_ptr = len(self.messages)
-
-    def partial_update(self):
-        """
-        Partially updates the messages (prints missing ones)
-        """
-
-        self._write_new()
-
-        start = self.line_offset + self.current_line
-        end = min(len(self.str_lines), start + self.message_field)
-
-        # set cursor position to the next line
-        self.set_cursor(0, self.current_line + 1)
-
-        # if the amount of lines added overflows the message field
-        if end - self.line_offset > self.message_field:
-            # clamp it to limits of message field
-            end = start + self.message_field - self.current_line
-
-        # offset the current line by the amount of added newline
-        self.current_line += end - start
-
-        to_print = "\n".join(self.str_lines[start:end])
-        print(to_print, end="", flush=True)
-
-    def print(self, *values, sep=" "):
-        """
-        Prints out a string to the terminal
-        :param values: values that will be printed
-        :param sep: separators used between values
-        """
-
-        lines = character_wrap(sep.join(map(str, values))).split("\n")
-        self.str_lines += lines
-
-        self.partial_update()
-
-    def log(self, *values, sep=""):
-        """
-        Prints out strings to the terminal, client logging
-        :param values: values that will be printed
-        :param sep: separator that will be put between values
-        """
-
-        lines = character_wrap(
-            sep.join(map(lambda x: f"{CLIENT_LOG} {x}{CS_RESET}", values))
-        ).split("\n")
-        self.str_lines += lines
-
-        self.partial_update()
+        self._print("\33[H" + ("\33[0K\n"*self.message_field))
+        self.line_ptr = 0
+        if flush:
+            self.refresh()
 
     def update_all(self):
         """
-        Updates everything on the terminal
+        Updates all terminal lines with messages. Flushes the buffer
         """
 
-        self.clear_terminal(False)
+        self.clear_terminal(flush=False)
+        self.line_ptr = 0
+        self.lines.clear()
+        for message in self.messages:
+            self.lines += message.lines()
+        self.update_onscreen()
 
-        start = self.line_offset
-        end = min(len(self.str_lines), self.line_offset + self.message_field)
-        print("\33[H" + "\n".join(self.str_lines[start:end]), end="", flush=False)
-        self.current_line = end - start
+    def update_onscreen(self):
+        """
+        Updates lines that are currently on screen. Flushes the buffer
+        """
 
-        self._update_input()
+        start = self.line_ptr + self.line_offset
+        end = min(start + self.message_field, len(self.lines))
+
+        # prevent message field overflows
+        if end - self.line_offset > self.message_field:
+            end = start + self.message_field - self.line_ptr
+
+        self.set_cursor(0, self.line_ptr+1)
+
+        # offset the line pointer
+        self.line_ptr += end - start
+
+        # go to line pointer points to, and print the message
+        self._print("\n".join(self.lines[start:end]))
+        self.refresh()
+
+    def print(self, value):
+        """
+        Prints out a value to the screen. Flushes the buffer
+        """
+
+        # append new message to the terminal
+        self.messages.append(TerminalMessage(content=value.__str__()))
+        self.lines += self.messages[-1].lines()
+
+        # update onscreen messages
+        self.update_onscreen()
+
+    def log(self, value):
+        """
+        Prints message as a client
+        """
+
+        # append new message to the terminal
+        self.messages.append(TerminalMessage(content=f"{CLIENT_LOG} {value}{CS_RESET}"))
+        self.lines += self.messages[-1].lines()
+
+        # update onscreen messages
+        self.update_onscreen()

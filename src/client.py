@@ -62,15 +62,15 @@ class Client:
                     }
                 )
 
-                print("Connection successful.\n")
-                self.terminal.clear_terminal()
+                self.terminal.log("connection successful!")
                 await asyncio.gather(
                     self.process_heartbeat(),
                     self.process_input(),
                     self.terminal.start_listening()
                 )
 
-        print("Attempting connect...")
+        self.terminal.clear_terminal()
+        self.terminal.log("attempting connection")
         try:
             asyncio.run(coro())
         except KeyboardInterrupt:
@@ -78,8 +78,7 @@ class Client:
         except websockets.exceptions.ConnectionClosedOK:
             pass
         except OSError:
-            print("\nConnection failed!")
-        print("\nConnection closed.")
+            self.terminal.log("connection failed")
 
     async def process_input(self) -> None:
         """
@@ -101,7 +100,7 @@ class Client:
                 # if message is in current channel
                 if response["d"]["channel_id"] == Client.current_channel.id:
                     self.terminal.messages.append(Message.from_response(response["d"]))
-                    self.terminal.partial_update()
+                    self.terminal.update_onscreen()
 
             # opcode 1
             elif response["op"] == 1:
@@ -186,7 +185,7 @@ class Client:
 
                 self.terminal.log(f"now viewing:{STYLE_ITALICS}{Client.current_channel.name}")
 
-            elif command[0] == "ex":
+            elif command[0] == "exit":
                 await self._socket.close()
                 self.terminal.log("connection closed")
 

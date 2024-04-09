@@ -28,5 +28,5 @@ CLIENT_HELP = [
     "//list_g - prints out list of all guilds",
     f"//list_c {STYLE_ITALICS}guild{CS_RESET} - prints out channels in a guild",
     f"//pick_c {STYLE_ITALICS}guild{CS_RESET} {STYLE_ITALICS}channel{CS_RESET} - selects a channel to view",
-    "//ex - closes the connection"
+    "//exit - closes the connection"
 ]

@@ -36,7 +36,7 @@ def debug():
         while True:
             await asyncio.sleep(0.1)
 
-    def input_callback(user_input: list[str]):
+    async def input_callback(user_input: list[str]):
         user_input = "".join(user_input).strip(" ")
 
         author = {"username": "godly"}
@@ -50,6 +50,10 @@ def debug():
     async def coro():
         terminal.clear_terminal()
         terminal.input_callback = input_callback
+
+        for x in range(100):
+            terminal.log(f"[{x}] text {x**3}")
+
         await asyncio.gather(
             terminal.start_listening(),
             while_true())
@@ -57,7 +61,7 @@ def debug():
     try:
         asyncio.run(coro())
     except KeyboardInterrupt:
-        print("Ded.")
+        terminal.log("ded.")
 
 
 if __name__ == '__main__':

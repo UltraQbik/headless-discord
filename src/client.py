@@ -6,6 +6,7 @@ from typing import Any
 from random import random
 from .types import *
 from .terminal import Term
+from .formatting import format_message
 
 
 class Client:
@@ -62,15 +63,15 @@ class Client:
                     }
                 )
 
-                print("Connection successful.\n")
-                self.terminal.clear_terminal()
+                self.terminal.log("connection successful!")
                 await asyncio.gather(
                     self.process_heartbeat(),
                     self.process_input(),
                     self.terminal.start_listening()
                 )
 
-        print("Attempting connect...")
+        self.terminal.clear_terminal()
+        self.terminal.log("attempting connection")
         try:
             asyncio.run(coro())
         except KeyboardInterrupt:
@@ -78,8 +79,7 @@ class Client:
         except websockets.exceptions.ConnectionClosedOK:
             pass
         except OSError:
-            print("\nConnection failed!")
-        print("\nConnection closed.")
+            self.terminal.log("connection failed")
 
     async def process_input(self) -> None:
         """
@@ -100,8 +100,10 @@ class Client:
             elif response["t"] == "MESSAGE_CREATE":
                 # if message is in current channel
                 if response["d"]["channel_id"] == Client.current_channel.id:
-                    self.terminal.messages.append(Message.from_response(response["d"]))
-                    self.terminal.partial_update()
+                    message = Message.from_response(response["d"])
+                    message.format_for_user(Client.user)
+                    self.terminal.print(format_message(message))
+                    self.terminal.update_onscreen()
 
             # opcode 1
             elif response["op"] == 1:
@@ -132,13 +134,13 @@ class Client:
             if command[0] == "help":
                 self.terminal.log(f"here's a list of instructions:")
                 for help_msg in CLIENT_HELP:
-                    self.terminal.print(f"\t{help_msg}")
+                    self.terminal.log(f"\t{help_msg}")
 
             # list guilds command
             elif command[0] == "list_g":
                 self.terminal.log(f"list of guilds:")
                 for idx, guild in enumerate(Client.guilds):
-                    self.terminal.print(f"\t[{idx}] {guild.name}")
+                    self.terminal.log(f"\t[{idx}] {guild.name}")
 
             # list channels in guild command
             elif command[0] == "list_c" and len(command) >= 2:
@@ -151,7 +153,7 @@ class Client:
 
                 self.terminal.log(f"list of channels:")
                 for idx, channel in enumerate(Client.guilds[index].channels):
-                    self.terminal.print(f"\t[{idx}] {channel.name}")
+                    self.terminal.log(f"\t[{idx}] {channel.name}")
 
             # pick channel in guild command
             elif command[0] == "pick_c" and len(command) >= 3:
@@ -179,14 +181,14 @@ class Client:
                     messages = []
                 messages.sort(key=lambda x: datetime.fromisoformat(x['timestamp']))
 
-                # append them to terminal
-                self.terminal.messages += [
-                    Message.from_response(x) for x in messages
-                ]
-
                 self.terminal.log(f"now viewing:{STYLE_ITALICS}{Client.current_channel.name}")
+                # print to terminal
+                for message in messages:
+                    msg = Message.from_response(message)
+                    msg.format_for_user(Client.user)
+                    self.terminal.print(format_message(msg))
 
-            elif command[0] == "ex":
+            elif command[0] == "exit":
                 await self._socket.close()
                 self.terminal.log("connection closed")
 

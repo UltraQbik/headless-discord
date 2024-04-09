@@ -1,4 +1,5 @@
 import re
+
 from .constants import *
 from datetime import datetime
 
@@ -91,6 +92,20 @@ class Message:
         # guild data
         self.guild_id: str | None = kwargs.get("guild_id")
 
+    @staticmethod
+    def from_response(response: dict):
+        """
+        Generates message instance from discord response
+        :return: Message
+        """
+
+        return Message(**response)
+
+    def format_for_user(self, user: User):
+        """
+        Cleans content for client (TEMP FIX)
+        """
+
         # clean content up
         content_mentions = re.findall(r"<(.*?)>", self.content)
         for content_mention in content_mentions:
@@ -100,7 +115,7 @@ class Message:
                         username = mention.member.nick if mention.member else mention.username
 
                         # if user mentioned is the client
-                        if mention.id == Client.user.id:
+                        if mention.id == user.id:
                             username = f"{PING_ME_HIGHLIGHT}@{username}{CS_RESET}"
                         else:
                             username = f"{PING_HIGHLIGHT}@{username}{CS_RESET}"
@@ -118,15 +133,6 @@ class Message:
 
         # when @here is pinged
         self.content = self.content.replace("@here", f"{PING_ME_HIGHLIGHT}@here{CS_RESET}")
-
-    @staticmethod
-    def from_response(response: dict):
-        """
-        Generates message instance from discord response
-        :return: Message
-        """
-
-        return Message(**response)
 
     def __str__(self):
         timestamp = self.timestamp.strftime('%H:%M:%S')

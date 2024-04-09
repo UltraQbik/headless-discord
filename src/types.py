@@ -23,7 +23,10 @@ class Member:
     """
 
     def __init__(self, **kwargs):
-        pass
+        self.user: User = kwargs.get("user")
+        self.nick: str | None = kwargs.get("nick")
+        self.roles: list[Role] = kwargs.get("roles", list())
+        self.permissions: str | None = kwargs.get("permissions")
 
 
 class User:

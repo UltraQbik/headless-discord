@@ -26,7 +26,7 @@ CLIENT_LOG = "\33[35m[CLIENT]\33[95m"
 CLIENT_HELP = [
     "//help - prints out this message",
     "//list_g - prints out list of all guilds",
-    f"//list_c {STYLE_ITALICS}guild{CS_RESET} - prints out channels in a guild",
-    f"//pick_c {STYLE_ITALICS}guild{CS_RESET} {STYLE_ITALICS}channel{CS_RESET} - selects a channel to view",
+    f"//list_c [guild] - prints out channels in a guild",
+    f"//pick_c [guild] [channel] - selects a channel to view",
     "//exit - closes the connection"
 ]

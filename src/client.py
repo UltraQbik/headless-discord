@@ -131,13 +131,13 @@ class Client:
             if command[0] == "help":
                 self.terminal.log(f"here's a list of instructions:")
                 for help_msg in CLIENT_HELP:
-                    self.terminal.print(f"\t{help_msg}")
+                    self.terminal.log(f"\t{help_msg}")
 
             # list guilds command
             elif command[0] == "list_g":
                 self.terminal.log(f"list of guilds:")
                 for idx, guild in enumerate(Client.guilds):
-                    self.terminal.print(f"\t[{idx}] {guild.name}")
+                    self.terminal.log(f"\t[{idx}] {guild.name}")
 
             # list channels in guild command
             elif command[0] == "list_c" and len(command) >= 2:
@@ -150,7 +150,7 @@ class Client:
 
                 self.terminal.log(f"list of channels:")
                 for idx, channel in enumerate(Client.guilds[index].channels):
-                    self.terminal.print(f"\t[{idx}] {channel.name}")
+                    self.terminal.log(f"\t[{idx}] {channel.name}")
 
             # pick channel in guild command
             elif command[0] == "pick_c" and len(command) >= 3:

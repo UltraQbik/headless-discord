@@ -37,7 +37,6 @@ class Term:
     """
 
     message_field: int = TERM_HEIGHT - 2
-    input_field: str = '[-]: '
 
     def __init__(self):
         # terminal stuff
@@ -49,7 +48,7 @@ class Term:
 
         # terminal user input
         self.input_callback = None
-        self.user_input: list[str] = [" " for _ in range(TERM_WIDTH - len(self.input_field))]
+        self.user_input: list[str] = [" " for _ in range(TERM_WIDTH)]
         self.user_cursor: int = 0
 
     async def start_listening(self):
@@ -138,7 +137,7 @@ class Term:
         Clears user input buffer
         """
 
-        self.user_input = [" " for _ in range(TERM_WIDTH - len(self.input_field))]
+        self.user_input = [" " for _ in range(TERM_WIDTH)]
         self.user_cursor = 0
         self._update_input()
 
@@ -176,7 +175,7 @@ class Term:
         Updates user input string
         """
 
-        print(f"\33[{self.message_field + 2};{len(self.input_field) + 1}H", end="", flush=False)
+        print(f"\33[{self.message_field + 2};0H", end="", flush=False)
         user_input = "".join(self.user_input[:self.user_cursor])
         user_input += TERM_CURSOR + self.user_input[self.user_cursor] + TERM_INPUT_FIELD
         user_input += "".join(self.user_input[self.user_cursor + 1:])
@@ -191,16 +190,16 @@ class Term:
         self._print(
             f"\33[{self.message_field + 1};0H"
             f"{TERM_INPUT_FIELD}{'=' * TERM_WIDTH}{CS_RESET}\n"
-            f"{TERM_INPUT_FIELD}{self.input_field}{' ' * (TERM_WIDTH - len(self.input_field))}{CS_RESET}")
+            f"{TERM_INPUT_FIELD}{' ' * TERM_WIDTH}{CS_RESET}")
         if flush:
             self.refresh()
 
     def clear_message_field(self, flush=True):
         """
-        Clears just the message field, without reprinting the entire frame. Flushes the buffer
+        Clears just the message field, without reprinting the entire frame
         """
 
-        self._print("\33[H" + ("\33[0K\n"*self.message_field))
+        self._print(f"\33[{self.message_field};120H\33[1J")
         self.line_ptr = 0
         if flush:
             self.refresh()

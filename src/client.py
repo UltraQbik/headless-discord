@@ -6,41 +6,61 @@ from typing import Any
 from random import random
 from .types import *
 from .terminal import Term
-from .formatting import format_message
 
 
 class Client:
-    user: User | None = None
-    guilds: list[Guild] | None = []
-    current_channel: Channel | None = Channel()
+    """
+    Running client class
+    """
 
-    def __init__(self):
-        self._auth: str | None = None
-        self._socket: websockets.WebSocketClientProtocol | None = None
+    # connection
+    auth: str | None = None
+    sock: websockets.WebSocketClientProtocol | None = None
 
-        self._heartbeat_interval = None
-        self._sequence = None
+    # keep alive
+    heartbeat_interval: int = 41250
+    sequence: int | None = None
 
-        self.terminal: Term = Term()
-        self.terminal.input_callback = self.process_user_commands
+    # terminal
+    term: Term = Term()
 
-    def run(self, token: str) -> None:
+    # discord
+    user: ClientUser | None = None
+
+    @classmethod
+    async def get_request(cls) -> Any:
+        """
+        Gets request from connected socket
+        """
+
+        response = await cls.sock.recv()
+        if response:
+            return json.loads(response)
+
+    @classmethod
+    async def send_request(cls, request: Any):
+        """
+        Sends a request to connected socket
+        """
+
+        await cls.sock.send(json.dumps(request))
+
+    @classmethod
+    def run(cls, token: str) -> None:
         """
         Connects the client
         """
 
-        self._auth = token
-
         async def coro():
-            async with websockets.connect(GATEWAY) as websocket:
-                self._socket = websocket
-                self._heartbeat_interval = (await self.get_request())["d"]["heartbeat_interval"]
-
-                await self.send_request(
+            async with websockets.connect(GATEWAY) as websock:
+                cls.sock = websock
+                cls.heartbeat_interval = (await cls.get_request())['d']['heartbeat_interval']
+                cls.term.log("connection successful")
+                await cls.send_request(
                     {
                         "op": 2,
                         "d": {
-                            "token": self._auth,
+                            "token": cls.auth,
                             "capabilities": 16381,
                             "properties": {
                                 "os": "Windows",
@@ -62,16 +82,14 @@ class Client:
                         }
                     }
                 )
-
-                self.terminal.log("connection successful!")
+                cls.term.log("authentication successful")
                 await asyncio.gather(
-                    self.process_heartbeat(),
-                    self.process_input(),
-                    self.terminal.start_listening()
+                    cls.keep_alive(),
+                    cls.process_events()
                 )
-
-        self.terminal.clear_terminal()
-        self.terminal.log("attempting connection")
+        cls.auth = token
+        cls.term.clear_terminal()
+        cls.term.log("attempting connection")
         try:
             asyncio.run(coro())
         except KeyboardInterrupt:
@@ -79,174 +97,38 @@ class Client:
         except websockets.exceptions.ConnectionClosedOK:
             pass
         except OSError:
-            self.terminal.log("connection failed")
+            cls.term.log("connection failed")
+        cls.term.log("connection closed")
 
-    async def process_input(self) -> None:
+    @classmethod
+    async def process_events(cls):
         """
-        Processes gateways input things
+        Processes discord gateway sent events
         """
 
         while True:
-            response = await self.get_request()
-            self._sequence = response["s"] if response["s"] else self._sequence
+            response = await cls.get_request()
+            cls.sequence = response["s"] if response["s"] else cls.sequence
 
-            # ready
-            if response["t"] == "READY":
-                Client.user = User(**(response["d"]["user"]))
-                for guild in response["d"]["guilds"]:
-                    Client.guilds.append(Guild.from_response(guild))
-
-            # messages
-            elif response["t"] == "MESSAGE_CREATE":
-                # if message is in current channel
-                if response["d"]["channel_id"] == Client.current_channel.id:
-                    message = Message.from_response(response["d"])
-                    message.format_for_user(Client.user)
-                    self.terminal.print(format_message(message))
-                    self.terminal.update_onscreen()
-
-            # opcode 1
-            elif response["op"] == 1:
-                await self.send_heartbeat()
-
-            elif response["op"] == 9:
-                self.terminal.print(f"{CLIENT_LOG} disconnected...")
-
-            # anything else
-            else:
-                with open("big2.json", "a", encoding="utf8") as file:
-                    file.write(json.dumps(response, indent=2) + "\n\n")
-
-    async def process_user_commands(self, user_input: list[str]) -> None:
+    @classmethod
+    async def keep_alive(cls):
         """
-        Processes user inputted commands
+        Keeps the connection alive
         """
 
-        # make input string a string
-        user_input: str = "".join(user_input).strip(" ")
+        # send first heartbeat
+        await asyncio.sleep(cls.heartbeat_interval * random() / 1000)
+        await cls.send_heartbeat()
 
-        # when user inputs // => that's a command
-        if user_input[:2] == "//":
-            command_raw = user_input[2:]
-            command = command_raw.split(" ")
+        # keep alive
+        while cls.sock.open:
+            await asyncio.sleep(cls.heartbeat_interval / 1000)
+            await cls.send_heartbeat()
 
-            # help command
-            if command[0] == "help":
-                self.terminal.log(f"here's a list of instructions:")
-                for help_msg in CLIENT_HELP:
-                    self.terminal.log(f"\t{help_msg}")
-
-            # list guilds command
-            elif command[0] == "list_g":
-                self.terminal.log(f"list of guilds:")
-                for idx, guild in enumerate(Client.guilds):
-                    self.terminal.log(f"\t[{idx}] {guild.name}")
-
-            # list channels in guild command
-            elif command[0] == "list_c" and len(command) >= 2:
-                try:
-                    index = int(command[1])
-                except ValueError:
-                    return
-                if abs(index) > len(Client.guilds):
-                    return
-
-                self.terminal.log(f"list of channels:")
-                for idx, channel in enumerate(Client.guilds[index].channels):
-                    self.terminal.log(f"\t[{idx}] {channel.name}")
-
-            # pick channel in guild command
-            elif command[0] == "pick_c" and len(command) >= 3:
-                try:
-                    guild_idx = int(command[1])
-                    channel_idx = int(command[2])
-                except ValueError:
-                    return
-                if abs(guild_idx) > len(Client.guilds):
-                    return
-                guild = Client.guilds[guild_idx]
-                if abs(channel_idx) > len(guild.channels):
-                    return
-
-                Client.current_channel = guild.channels[channel_idx]
-
-                # fetch channel messages
-                try:
-                    response = self.send_api_request(
-                        rtype="GET", request=None,
-                        http=f"{API}/channels/{Client.current_channel.id}/messages?limit=50")
-                    messages = response.json()
-                except requests.exceptions.JSONDecodeError:
-                    self.terminal.log("error when loading messages")
-                    messages = []
-                messages.sort(key=lambda x: datetime.fromisoformat(x['timestamp']))
-
-                self.terminal.log(f"now viewing:{STYLE_ITALICS}{Client.current_channel.name}")
-                # print to terminal
-                for message in messages:
-                    msg = Message.from_response(message)
-                    msg.format_for_user(Client.user)
-                    self.terminal.print(format_message(msg))
-
-            elif command[0] == "exit":
-                await self._socket.close()
-                self.terminal.log("connection closed")
-
-        # otherwise it's text or something, so make an API request
-        else:
-            if Client.current_channel.id:
-                self.send_api_request(
-                    request={"content": user_input},
-                    http=f"{API}/channels/{Client.current_channel.id}/messages"
-                )
-            else:
-                self.terminal.log(f"you haven't chosen a channel! use '//help'")
-
-    async def process_heartbeat(self) -> None:
+    @classmethod
+    async def send_heartbeat(cls):
         """
-        Sends heartbeat event to opened gateway, to notify it that the app is running.
-        Ran only once, when the connection is opened
+        Sends heartbeat to gateway
         """
 
-        # send heartbeat
-        # wait `heartbeat_interval * jitter` as per discord docs
-        await asyncio.sleep(self._heartbeat_interval * random() / 1000)
-        await self.send_heartbeat()
-
-        # continue the heartbeat
-        while self._socket.open:
-            await asyncio.sleep(self._heartbeat_interval / 1000)
-            await self.send_heartbeat()
-
-    async def send_heartbeat(self) -> None:
-        """
-        Sends heartbeat request to the gateway
-        """
-
-        await self.send_request({"op": 1, "d": self._sequence})
-
-    async def send_request(self, request: Any) -> None:
-        """
-        Sends a request to connected socket
-        """
-
-        await self._socket.send(json.dumps(request))
-
-    async def get_request(self) -> Any:
-        """
-        Gets request from connected socket
-        """
-
-        response = await self._socket.recv()
-        if response:
-            return json.loads(response)
-
-    def send_api_request(self, request: Any, rtype: str = "POST", http: str = "") -> requests.Response:
-        """
-        Sends API request to discord
-        """
-
-        if rtype == "POST":
-            return requests.post(http, headers={"Authorization": self._auth}, json=request)
-        elif rtype == "GET":
-            return requests.get(http, headers={"Authorization": self._auth}, json=request)
+        await cls.send_request({"op": 1, "d": cls.sequence})

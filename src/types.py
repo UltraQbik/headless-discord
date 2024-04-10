@@ -149,7 +149,7 @@ class Member:
 
     def __init__(self, **kwargs):
         self.user: User = kwargs.get("user")
-        self.guild: Guild | None = Client.known_guilds.get(kwargs.get("guild_id"))
+        self.guild: Guild | None = ClientUser.known_guilds.get(kwargs.get("guild_id"))
         self.nick: str | None = kwargs.get("nick")
         self.roles: list[Role] = kwargs.get("roles", list())
         self.permissions: Permissions | None = Permissions(
@@ -178,7 +178,7 @@ class Channel:
 
     def __init__(self, **kwargs):
         self.id: str = kwargs.get("id")
-        self.guild: Guild | None = Client.known_guilds.get(kwargs.get("guild_id"))
+        self.guild: Guild | None = ClientUser.known_guilds.get(kwargs.get("guild_id"))
         self.type: ChannelType = ChannelType(kwargs.get("type"))
         self.name: str | None = kwargs.get("name")
         self.position: int = kwargs.get("position", 0)
@@ -231,7 +231,7 @@ class Guild:
         )
 
 
-class Client(User):
+class ClientUser(User):
     """
     Client user
     """
@@ -250,7 +250,7 @@ class Message:
 
     def __init__(self, **kwargs):
         self.id: str = kwargs.get("id")
-        self.channel: Channel | None = Client.known_guilds.get(kwargs.get("channel_id"))
+        self.channel: Channel | None = ClientUser.known_guilds.get(kwargs.get("channel_id"))
         self.author: User = kwargs.get("author")
         self.content: str = kwargs.get("content")
         self.type: MessageType = MessageType(int(kwargs.get("type")))

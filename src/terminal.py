@@ -110,6 +110,7 @@ class Term:
         if old != self.line_offset:
             self.clear_message_field(flush=False)
             self.update_onscreen()
+            self._update_input()
 
     def _print(self, value):
         """

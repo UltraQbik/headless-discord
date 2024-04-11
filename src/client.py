@@ -85,7 +85,8 @@ class Client:
                 cls.term.log("authentication successful")
                 await asyncio.gather(
                     cls.keep_alive(),
-                    cls.process_events()
+                    cls.process_events(),
+                    cls.term.start_listening()
                 )
         cls.auth = token
         cls.term.clear_terminal()

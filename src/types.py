@@ -200,15 +200,6 @@ class Channel:
         )
 
 
-class PrivateChannel(Channel):
-    """
-    Private channel class
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-
 class Guild:
     """
     Guild class
@@ -247,7 +238,7 @@ class ClientUser(User):
 
     known_guilds: dict[str, Guild] = {}
     known_channels: dict[str, Channel] = {}
-    private_channels: dict[str, PrivateChannel] = {}
+    private_channels: dict[str, Channel] = {}
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

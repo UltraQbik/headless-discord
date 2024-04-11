@@ -83,6 +83,7 @@ class Client:
                     }
                 )
                 cls.term.log("authentication successful")
+                cls.term.input_callback = process_user_input
                 await asyncio.gather(
                     cls.keep_alive(),
                     cls.process_events(),
@@ -195,3 +196,12 @@ async def process_event(event):
     elif event_type == "MESSAGE_CREATE":
         # do something here
         pass
+
+
+async def process_user_input(user_input: list[str]):
+    """
+    Processes user inputted text
+    """
+
+    string = "".join(user_input)
+    Client.term.log(string)

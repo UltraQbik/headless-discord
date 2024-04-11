@@ -1,11 +1,11 @@
 import re
-from enum import Enum, Flag, auto
+from enum import Enum, IntFlag, auto
 
 from .constants import *
 from datetime import datetime
 
 
-class Permissions(Flag):
+class Permissions(IntFlag):
     """
     Permissions flag enum. Oh god, there are so many
     """
@@ -184,6 +184,7 @@ class Channel:
         self.position: int = kwargs.get("position", 0)
         self.permissions: Permissions | None = Permissions(
             int(kwargs.get("permissions"))) if "permissions" in kwargs else None
+        self.recipients: list[User] = kwargs.get("recipients", list())
 
     @staticmethod
     def from_response(response: dict):
@@ -191,12 +192,17 @@ class Channel:
         Make channel object from any response
         """
 
+        recipients = [
+            User(**x) for x in response.get("recipients", [])
+        ]
+
         return Channel(
             id=response["id"],  # always present
             type=response["type"],  # always present
             name=response.get("name"),  # may be present, nullable
             position=response.get("position", 0),  # may be present
-            permissions=response.get("permissions")  # may be present
+            permissions=response.get("permissions"),  # may be present
+            recipients=recipients
         )
 
 
@@ -236,6 +242,7 @@ class ClientUser(User):
     Client user
     """
 
+    known_users: dict[str, User] = {}
     known_guilds: dict[str, Guild] = {}
     known_channels: dict[str, Channel] = {}
     private_channels: dict[str, Channel] = {}

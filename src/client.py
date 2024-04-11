@@ -111,6 +111,8 @@ class Client:
             response = await cls.get_request()
             cls.sequence = response["s"] if response["s"] else cls.sequence
 
+            await process_event(response)
+
     @classmethod
     async def keep_alive(cls):
         """
@@ -133,3 +135,63 @@ class Client:
         """
 
         await cls.send_request({"op": 1, "d": cls.sequence})
+
+
+async def process_event(event):
+    """
+    Processes the event
+    """
+
+    event_type = event["t"]
+    event_data = event["d"]
+
+    # READY event (when authorised)
+    if event_type == "READY":
+        # get current's user info
+        Client.user = ClientUser(
+            id=event_data["user"]["id"],
+            username=event_data["user"]["username"])
+
+        # get known users
+        for user_raw in event_data["users"]:
+            user = User(
+                id=user_raw["id"],
+                username=user_raw["username"],
+                global_name=user_raw["global_name"],
+                bot=user_raw["bot"])
+            Client.user.known_users[user.id] = user
+
+        # get all private channels
+        for channel_raw in event_data["private_channels"]:
+            channel = Channel(
+                id=channel_raw["id"],
+                type=channel_raw["type"],
+                recipients=[Client.user.known_users[x] for x in channel_raw["recipient_ids"]])
+
+            Client.user.private_channels[channel.id] = channel
+
+        # get some guilds
+        for guild_raw in event_data["guilds"]:
+            guild = Guild(
+                id=guild_raw["id"],
+                name=guild_raw["properties"]["name"],
+                description=guild_raw["properties"]["description"],
+                roles=[Role(**x) for x in guild_raw["roles"]],
+                channels=[Channel(**x) for x in guild_raw["channels"]])
+
+            Client.user.known_guilds[guild.id] = guild
+
+    # READY_SUPPLEMENTAL event (after READY event)
+    elif event_type == "READY_SUPPLEMENTAL":
+        # data here is not very useful (yet)
+        pass
+
+    # SESSIONS_REPLACE event (after READY_SUPPLEMENTAL event)
+    elif event_type == "SESSIONS_REPLACE":
+        # data here is not very useful (yet)
+        pass
+
+    # MESSAGE_CREATE
+    elif event_type == "MESSAGE_CREATE":
+        # do something here
+        pass

@@ -292,6 +292,7 @@ class ClientUser(User):
     known_guilds: dict[str, Guild] = {}
     known_channels: dict[str, Channel] = {}
     private_channels: dict[str, Channel] = {}
+    focus_channel: Channel | None = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

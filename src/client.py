@@ -194,8 +194,8 @@ async def process_event(event):
 
     # MESSAGE_CREATE
     elif event_type == "MESSAGE_CREATE":
-        # do something here
-        pass
+        if event_data["id"] == Client.user.focus_channel.id:
+            pass
 
 
 async def process_user_input(user_input: list[str]):

@@ -126,3 +126,12 @@ class Term:
         self.user_input.insert(self.user_cursor, key)
         self.user_input.pop()
         self._update_user_input()
+
+    def _move_user_cursor(self, offset: int):
+        """
+        Moves user cursor
+        """
+
+        self.user_cursor += offset
+        self.user_cursor = max(0, min(len(self.user_input), self.user_cursor))
+        self._update_user_input()

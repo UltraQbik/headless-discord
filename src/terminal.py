@@ -2,6 +2,7 @@ import os
 from string import printable
 from sshkeyboard import listen_keyboard_manual
 
+from .types import Message
 from .formatting import *
 
 # initialize ANSI escape codes
@@ -16,7 +17,7 @@ class TerminalMessage:
 
     def __init__(self, **kwargs):
         self.content: str | None = kwargs.get("content")
-        self.reference_message: int | None = kwargs.get("reference_message")
+        self.reference_message: Message | None = kwargs.get("reference_message")
 
     def __str__(self) -> str:
         return character_wrap(self.content, Term.term_width)
@@ -302,3 +303,16 @@ class Term:
 
         # print it out
         self.print(value)
+
+    def print_message(self, message: Message):
+        """
+        High level print method for printing discord messages
+        """
+
+        # append new message
+        message = TerminalMessage(content=message.content, reference_message=message)
+        self.messages.append(message)
+        self.lines += message.lines()
+
+        # print out newest lines
+        self.update_newest()

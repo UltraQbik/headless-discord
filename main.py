@@ -52,7 +52,7 @@ def debug():
         terminal.input_callback = input_callback
 
         for x in range(100):
-            terminal.log(f"[{x}] text {x**3}")
+            terminal.print(f"[{x}] text {x**3}")
 
         await asyncio.gather(
             terminal.start_listening(),

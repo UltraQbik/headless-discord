@@ -72,6 +72,8 @@ class Term:
             self._insert_user_input(" ")
         elif key == "backspace":
             self._pop_user_input()
+        elif key == "delete":
+            self._delete_user_input()
         elif key == "enter":
             await self.input_callback(self.user_input)
             self._clear_user_input()
@@ -80,9 +82,11 @@ class Term:
         elif key == "down":
             self.change_line(5)
         elif key == "left":
-            self._change_user_cursor(-1)
+            self._move_user_cursor(-1)
+            self._update_user_input()
         elif key == "right":
-            self._change_user_cursor(1)
+            self._move_user_cursor(1)
+            self._update_user_input()
         elif key == "pageup":
             self.change_line(-self.message_field)
         elif key == "pagedown":
@@ -97,173 +101,202 @@ class Term:
 
         pass
 
-    def change_line(self, offset: int):
+    def _print(self, value, flush=False):
         """
-        Offsets the line pointer
-        """
-
-        old = self.line_offset
-        if offset < 0:
-            self.line_offset = max(0, self.line_offset + offset)
-        else:
-            self.line_offset = min(len(self.lines) - 8, self.line_offset + offset)
-        if old != self.line_offset:
-            self.clear_message_field(flush=False)
-            self.update_onscreen()
-            self._update_input()
-
-    def _print(self, value):
-        """
-        Internal print method, adds value to buffer
+        Internal print method
         """
 
         self.print_buffer += value.__str__()
+        if flush:
+            self._flush_buffer()
 
-    def refresh(self):
+    def _flush_buffer(self):
         """
-        Prints out terminal print buffer
-        """
-
-        print(self.print_buffer, end="", flush=True)
-
-    def set_cursor(self, x: int, y: int):
-        """
-        Sets the cursor position to the given out
+        Flushes the print buffer
         """
 
-        self._print(f"\33[{y};{x}H")
+        print(self.print_buffer, flush=True, end="")
+        self.print_buffer = ""
+
+    def _update_user_input(self):
+        """
+        Updates user input
+        """
+
+        self._print(f"\33[{self.message_field+2};0H", False)
+        to_print = TERM_INPUT_FIELD + "".join(self.user_input[:self.user_cursor])
+        to_print += TERM_CURSOR + self.user_input[self.user_cursor] + TERM_INPUT_FIELD
+        to_print += "".join(self.user_input[self.user_cursor+1:]) + CS_RESET
+        self._print("".join(to_print), True)
+
+    def _insert_user_input(self, key: str):
+        """
+        Inserts a character at user cursor
+        """
+
+        self.user_input.insert(self.user_cursor, key)
+        self.user_input.pop()
+        self._move_user_cursor(1)
+        self._update_user_input()
+
+    def _pop_user_input(self):
+        """
+        Removes a character at user cursor
+        """
+
+        self.user_input.pop(self.user_cursor-1)
+        self._move_user_cursor(-1)
+        self.user_input.append(" ")
+        self._update_user_input()
+
+    def _delete_user_input(self):
+        """
+        `delete` key functionality
+        """
+
+        self.user_input.pop(self.user_cursor)
+        self.user_input.append(" ")
+        self._update_user_input()
 
     def _clear_user_input(self):
         """
-        Clears user input buffer
+        Clears the user input
         """
 
         self.user_input = [" " for _ in range(TERM_WIDTH)]
         self.user_cursor = 0
-        self._update_input()
+        self._update_user_input()
 
-    def _change_user_cursor(self, offset: int):
+    def _move_user_cursor(self, offset: int):
         """
-        Offsets the user input cursor
-        """
-
-        if offset < 0:
-            self.user_cursor = max(0, self.user_cursor + offset)
-        else:
-            self.user_cursor = min(len(self.user_input) - 1, self.user_cursor + offset)
-        self._update_input()
-
-    def _insert_user_input(self, key: str):
-        """
-        Inserts text into user input string
+        Moves user cursor
         """
 
-        self.user_input[self.user_cursor] = key
-        self._change_user_cursor(1)
-        self._update_input()
+        self.user_cursor += offset
+        self.user_cursor = max(0, min(len(self.user_input), self.user_cursor))
 
-    def _pop_user_input(self):
+    def set_term_cursor(self, x: int, y: int, flush=False):
         """
-        Basically backspace implementation
-        """
-
-        self._change_user_cursor(-1)
-        self.user_input[self.user_cursor] = " "
-        self._update_input()
-
-    def _update_input(self):
-        """
-        Updates user input string
+        Sets X and Y position for terminal cursor
         """
 
-        print(f"\33[{self.message_field + 2};0H", end="", flush=False)
-        user_input = "".join(self.user_input[:self.user_cursor])
-        user_input += TERM_CURSOR + self.user_input[self.user_cursor] + TERM_INPUT_FIELD
-        user_input += "".join(self.user_input[self.user_cursor + 1:])
-        print(f"\33[0K{TERM_INPUT_FIELD}{user_input}{CS_RESET}", end="", flush=True)
+        self._print(f"\33[{y};{x}H", flush=flush)
 
-    def clear_terminal(self, flush=True):
+    def clear_terminal(self):
         """
-        Clears the terminal
+        Just clears the terminal
         """
 
         os.system("cls" if os.name == "nt" else "clear")
-        self._print(
-            f"\33[{self.message_field + 1};0H"
-            f"{TERM_INPUT_FIELD}{'=' * TERM_WIDTH}{CS_RESET}\n"
-            f"{TERM_INPUT_FIELD}{' ' * TERM_WIDTH}{CS_RESET}")
-        if flush:
-            self.refresh()
-
-    def clear_message_field(self, flush=True):
-        """
-        Clears just the message field, without reprinting the entire frame
-        """
-
-        self._print(f"\33[{self.message_field};120H\33[1J")
+        self.set_term_cursor(0, self.message_field+1)
+        self._print(f"{TERM_INPUT_FIELD}{'='*120}\n{TERM_INPUT_FIELD}{' '*120}{CS_RESET}", True)
         self.line_ptr = 0
-        if flush:
-            self.refresh()
 
-    def update_all(self):
+    def change_line(self, offset):
         """
-        Updates all terminal lines with messages. Flushes the buffer
+        Changes the line offset
         """
 
-        self.clear_terminal(flush=False)
-        self.line_ptr = 0
+        old = self.line_offset
+        self.line_offset += offset
+        self.line_offset = max(0, min(len(self.lines)-6, self.line_offset))
+        if self.line_offset != old:
+            self.update_onscreen_lines()
+
+    def update_lines(self):
+        """
+        Updates content of every line with new messages
+        """
+
         self.lines.clear()
-        for message in self.messages:
-            self.lines += message.lines()
-        self.update_onscreen()
+        for msg in self.messages:
+            self.lines += msg.lines()
 
-    def update_onscreen(self):
+    def update_onscreen_lines(self):
         """
-        Updates lines that are currently on screen. Flushes the buffer
+        Updates content of every terminal line (in message field)
         """
 
-        # if pointer is at the end of the message field, return
-        if self.line_ptr >= self.message_field:
+        # move cursor home (0, 0)
+        self._print("\33[H")
+
+        # calculate start and end
+        start = self.line_offset
+        end = min(len(self.lines), start + self.message_field)
+
+        # calculate line pointer
+        self.line_ptr = end - self.line_offset
+
+        # print lines
+        for line in self.lines[start:end]:
+            self._print(f"{line: <120}")
+
+        # deal with empty lines
+        for _ in range(self.message_field - self.line_ptr):
+            self._print(' '*120)
+
+        # flush the print buffer
+        self._flush_buffer()
+
+    def update_newest(self):
+        """
+        Updates content for newly added lines (when they are visible)
+        """
+
+        # check line pointer (if it exceeds the message field => return)
+        if self.line_ptr > self.message_field:
             return
 
-        start = self.line_ptr + self.line_offset
-        end = min(start + self.message_field, len(self.lines))
+        # move cursor to correct line
+        self.set_term_cursor(0, self.line_ptr+1)
+
+        # calculate start and end
+        start = self.line_offset + self.line_ptr
+        end = min(len(self.lines), start + self.message_field)
 
         # prevent message field overflows
         if end - self.line_offset > self.message_field:
             end = start + self.message_field - self.line_ptr
 
-        self.set_cursor(0, self.line_ptr+1)
+        # if there is nothing to print => return
+        if end - start == 0:
+            return
 
-        # offset the line pointer
+        # print lines
+        for line in self.lines[start:end]:
+            self._print(f"{line: <120}")
+
+        # deal with empty lines
+        for _ in range(self.message_field - self.line_ptr - 1):
+            self._print(' ' * 120)
+
+        # update line pointer
         self.line_ptr += end - start
 
-        # go to line pointer points to, and print the message
-        self._print("\n".join(self.lines[start:end]))
-        self.refresh()
+        # flush the print buffer
+        self._flush_buffer()
 
     def print(self, value):
         """
-        Prints out a value to the screen. Flushes the buffer
+        High level print method for the terminal
         """
 
-        # append new message to the terminal
-        self.messages.append(TerminalMessage(content=value.__str__()))
-        self.lines += self.messages[-1].lines()
+        # append new message
+        message = TerminalMessage(content=value.__str__())
+        self.messages.append(message)
+        self.lines += message.lines()
 
-        # update onscreen messages
-        self.update_onscreen()
+        # print out newest lines
+        self.update_newest()
 
     def log(self, value):
         """
-        Prints message as a client
+        High level print method, but adds [CLIENT] at the beginning
         """
 
-        # append new message to the terminal
-        content = f"{CLIENT_LOG} {value}{CS_RESET}".replace(CS_RESET, f"{CS_RESET}\33[95m")
-        content += CS_RESET
-        self.messages.append(TerminalMessage(content=content))
-        self.lines += self.messages[-1].lines()
+        # make value
+        value = CLIENT_LOG + " " + value.__str__()
+        value = value.replace(CS_RESET, f"{CS_RESET}\33[95m")
 
-        # update onscreen messages
-        self.update_onscreen()
+        # print it out
+        self.print(value)

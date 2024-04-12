@@ -189,7 +189,7 @@ class Term:
 
         os.system("cls" if os.name == "nt" else "clear")
         self.set_term_cursor(0, self.message_field+1)
-        self._print(f"{TERM_INPUT_FIELD}{'='*120}\n{TERM_INPUT_FIELD}{' '*120}", True)
+        self._print(f"{TERM_INPUT_FIELD}{'='*120}\n{TERM_INPUT_FIELD}{' '*120}{CS_RESET}", True)
         self.line_ptr = 0
 
     def change_line(self, offset):

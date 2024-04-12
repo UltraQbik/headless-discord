@@ -134,7 +134,15 @@ class Term:
         """
 
         self._move_user_cursor(-1)
-        self.user_input[self.user_cursor] = ""
+        self.user_input[self.user_cursor] = " "
+
+    def _clear_user_input(self):
+        """
+        Clears the user input
+        """
+
+        self.user_input = [" " for _ in range(TERM_WIDTH)]
+        self.user_cursor = 0
 
     def _move_user_cursor(self, offset: int):
         """

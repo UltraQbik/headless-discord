@@ -220,13 +220,13 @@ class Term:
 
         # calculate start and end
         start = self.line_offset
-        end = min(len(self.lines)-1, start + self.message_field)
+        end = min(len(self.lines)-1, start + self.message_field - 1)
 
         # calculate line pointer
         self.line_ptr = end - self.line_offset
 
         # print lines
-        for line in self.lines[start:end]:
+        for line in self.lines[start:end+1]:
             self._print(f"{line: <120}")
 
         # deal with empty lines
@@ -250,18 +250,21 @@ class Term:
 
         # calculate start and end
         start = self.line_offset + self.line_ptr
-        end = min(len(self.lines)-1, start + self.message_field)
+        end = min(len(self.lines)-1, start + self.message_field - 1)
 
         # prevent message field overflows
         if end - self.line_offset > self.message_field:
             end = start + self.message_field - self.line_ptr
+
+        # update line pointer
+        self.line_ptr += end - start
 
         # if there is nothing to print => return
         if end - start == 0:
             return
 
         # print lines
-        for line in self.lines[start:end]:
+        for line in self.lines[start:end+1]:
             self._print(f"{line: <120}")
 
         # deal with empty lines
@@ -284,13 +287,13 @@ class Term:
         # print out newest lines
         self.update_newest()
 
-    def log(self, value, flush=True):
+    def log(self, value):
         """
         High level print method, but adds [CLIENT] at the beginning
         """
 
         # make value
-        value = CLIENT_LOG + value.__str__()
+        value = CLIENT_LOG + " " + value.__str__()
         value = value.replace(CS_RESET, f"{CS_RESET}\33[95m")
 
         # print it out

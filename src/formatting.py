@@ -2,7 +2,7 @@ import re
 from .constants import *
 
 
-def character_wrap(string: str, width=TERM_WIDTH) -> str:
+def character_wrap(string: str, width=120) -> str:
     """
     Character wraps a string. ignores escape sequences
     """

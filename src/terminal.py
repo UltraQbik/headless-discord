@@ -1,10 +1,7 @@
 import os
-from typing import Callable
 from string import printable
 from sshkeyboard import listen_keyboard_manual
 
-from .constants import *
-from .types import Message
 from .formatting import *
 
 # initialize ANSI escape codes
@@ -21,7 +18,7 @@ class TerminalMessage:
         self.content: str | None = kwargs.get("content")
 
     def __str__(self) -> str:
-        return character_wrap(self.content)
+        return character_wrap(self.content, Term.term_width)
 
     def lines(self) -> list[str]:
         """
@@ -36,7 +33,10 @@ class Term:
     Terminal rendering class
     """
 
-    message_field: int = TERM_HEIGHT - 2
+    term_width: int = os.get_terminal_size().columns
+    term_height: int = os.get_terminal_size().lines
+
+    message_field: int = term_height - 2
 
     def __init__(self):
         # terminal stuff
@@ -48,7 +48,7 @@ class Term:
 
         # terminal user input
         self.input_callback = None
-        self.user_input: list[str] = [" " for _ in range(TERM_WIDTH)]
+        self.user_input: list[str] = [" " for _ in range(self.term_width)]
         self.user_cursor: int = 0
 
     async def start_listening(self):
@@ -163,7 +163,7 @@ class Term:
         Clears the user input
         """
 
-        self.user_input = [" " for _ in range(TERM_WIDTH)]
+        self.user_input = [" " for _ in range(self.term_width)]
         self.user_cursor = 0
         self._update_user_input()
 
@@ -189,7 +189,8 @@ class Term:
 
         os.system("cls" if os.name == "nt" else "clear")
         self.set_term_cursor(0, self.message_field+1)
-        self._print(f"{TERM_INPUT_FIELD}{'='*120}\n{TERM_INPUT_FIELD}{' '*120}{CS_RESET}", True)
+        self._print(f"{TERM_INPUT_FIELD}{'='*self.term_width}\n"
+                    f"{TERM_INPUT_FIELD}{' '*self.term_width}{CS_RESET}", True)
         self.line_ptr = 0
 
     def change_line(self, offset):
@@ -229,11 +230,11 @@ class Term:
 
         # print lines
         for line in self.lines[start:end]:
-            self._print(f"{line: <120}")
+            self._print(f"{line: <{self.term_width}}")
 
         # deal with empty lines
         for _ in range(self.message_field - self.line_ptr):
-            self._print(' '*120)
+            self._print(' ' * self.term_width)
 
         # flush the print buffer
         self._flush_buffer()
@@ -264,11 +265,11 @@ class Term:
 
         # print lines
         for line in self.lines[start:end]:
-            self._print(f"{line: <120}")
+            self._print(f"{line: <{self.term_width}}")
 
         # deal with empty lines
         for _ in range(self.message_field - self.line_ptr - 1):
-            self._print(' ' * 120)
+            self._print(' ' * self.term_width)
 
         # update line pointer
         self.line_ptr += end - start

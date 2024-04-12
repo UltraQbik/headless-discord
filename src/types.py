@@ -165,6 +165,7 @@ class Member:
     def __init__(self, **kwargs):
         """
         :key user: user reference
+        :key guild_id: member guild id
         :key guild: member guild
         :key nick: member's nickname
         :key roles: member's roles
@@ -172,11 +173,18 @@ class Member:
         """
 
         self.user: User = kwargs.get("user")
-        self.guild: Guild | None = ClientUser.known_guilds.get(kwargs.get("guild_id"))
+        self.guild: Guild | None = None
         self.nick: str | None = kwargs.get("nick")
         self.roles: list[Role] = kwargs.get("roles", list())
         self.permissions: Permissions | None = Permissions(
             int(kwargs.get("permissions"))) if "permissions" in kwargs else None
+
+        if kwargs.get("guild"):
+            self.guild = kwargs["guild"]
+        elif kwargs.get("guild_id"):
+            self.guild: Guild = ClientUser.known_guilds.get(kwargs.get("guild_id"))
+        else:
+            self.guild = None
 
 
 class User:
@@ -319,8 +327,8 @@ class Message:
         """
 
         self.id: str = kwargs.get("id")
-        self.channel: Channel | None = ClientUser.known_guilds.get(kwargs.get("channel_id"))
-        self.author: User = kwargs.get("author")
+        self.channel: Channel | None = ClientUser.known_channels.get(kwargs.get("channel_id"))
+        self.author: User | Member = kwargs.get("author")
         self.content: str = kwargs.get("content")
         self.type: MessageType = MessageType(int(kwargs.get("type")))
         self.timestamp: datetime = datetime.fromisoformat(kwargs.get("timestamp"))
@@ -331,3 +339,57 @@ class Message:
         self.mention_roles: list[Role] = kwargs.get("mention_roles", list())
         self.attachments: list[Attachment] = kwargs.get("attachments", list())
         # self.embeds: list = kwargs.get("embeds", list())  # e
+
+    @staticmethod
+    def from_create_event(event_data):
+        """
+        Makes message instance from MESSAGE_CREATE discord gateway event
+        """
+
+        # fetch some of the arguments
+        message = Message(
+            id=event_data["id"],
+            channel_id=event_data["channel_id"],
+            content=event_data["content"],
+            type=event_data["type"],
+            timestamp=event_data["timestamp"],
+            mention_everyone=event_data["mention_everyone"])
+
+        # check if author is already known
+        if event_data["author"]["id"] in ClientUser.known_users:
+            author = ClientUser.known_users[event_data["author"]["id"]]
+
+        # otherwise make new user
+        else:
+            author = User(
+                id=event_data["author"]["id"],
+                username=event_data["author"]["username"],
+                global_name=event_data["author"]["global_name"],
+                bot=event_data["author"].get("bot"))
+            ClientUser.known_users[author.id] = author
+
+        # if this is in a guild
+        if event_data.get("member"):
+            # fetch guild
+            guild = ClientUser.known_guilds[event_data["guild_id"]]
+
+            # fetch roles
+            roles = []
+            # go through all guild roles
+            for role in guild.roles:
+                # if that role is present => add to the list
+                if role.id in event_data["member"]["roles"]:
+                    roles.append(role)
+
+            message.author = Member(
+                user=author,
+                guild=guild,
+                nick=event_data["member"]["nick"],
+                roles=roles)
+
+        else:
+            message.author = author
+
+        # TODO: add mentions
+        # TODO: add mention roles
+        # TODO: add attachments

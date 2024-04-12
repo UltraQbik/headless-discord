@@ -72,6 +72,8 @@ class Term:
             self._insert_user_input(" ")
         elif key == "backspace":
             self._pop_user_input()
+        elif key == "delete":
+            self._delete_user_input()
         elif key == "enter":
             await self.input_callback(self.user_input)
             self._clear_user_input()
@@ -81,8 +83,10 @@ class Term:
             self.change_line(5)
         elif key == "left":
             self._move_user_cursor(-1)
+            self._update_user_input()
         elif key == "right":
             self._move_user_cursor(1)
+            self._update_user_input()
         elif key == "pageup":
             self.change_line(-self.message_field)
         elif key == "pagedown":
@@ -112,7 +116,7 @@ class Term:
         Updates user input
         """
 
-        self._print(f"\33[{self.message_field+1};0H", False)
+        self._print(f"\33[{self.message_field+2};0H", False)
         to_print = self.user_input[:self.user_cursor]
         to_print += TERM_CURSOR + self.user_input[self.user_cursor] + TERM_INPUT_FIELD
         to_print += self.user_input[self.user_cursor+1:]
@@ -136,6 +140,16 @@ class Term:
         self.user_input.pop(self.user_cursor-1)
         self._move_user_cursor(-1)
         self.user_input.append(" ")
+        self._update_user_input()
+
+    def _delete_user_input(self):
+        """
+        `delete` key functionality
+        """
+
+        self.user_input.pop(self.user_cursor)
+        self.user_input.append(" ")
+        self._update_user_input()
 
     def _clear_user_input(self):
         """
@@ -144,6 +158,7 @@ class Term:
 
         self.user_input = [" " for _ in range(TERM_WIDTH)]
         self.user_cursor = 0
+        self._update_user_input()
 
     def _move_user_cursor(self, offset: int):
         """
@@ -152,7 +167,6 @@ class Term:
 
         self.user_cursor += offset
         self.user_cursor = max(0, min(len(self.user_input), self.user_cursor))
-        self._update_user_input()
 
     def clear_terminal(self):
         """

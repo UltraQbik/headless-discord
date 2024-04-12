@@ -246,7 +246,7 @@ class Term:
             return
 
         # move cursor to correct line
-        self.set_term_cursor(0, self.line_ptr)
+        self.set_term_cursor(0, self.line_ptr+1)
 
         # calculate start and end
         start = self.line_offset + self.line_ptr
@@ -256,20 +256,20 @@ class Term:
         if end - self.line_offset > self.message_field:
             end = start + self.message_field - self.line_ptr
 
-        # update line pointer
-        self.line_ptr += end - start
-
         # if there is nothing to print => return
         if end - start == 0:
             return
 
         # print lines
-        for line in self.lines[start:end+1]:
+        for line in self.lines[start:end]:
             self._print(f"{line: <120}")
 
         # deal with empty lines
         for _ in range(self.message_field - self.line_ptr):
             self._print(' ' * 120)
+
+        # update line pointer
+        self.line_ptr += end - start
 
         # flush the print buffer
         self._flush_buffer()

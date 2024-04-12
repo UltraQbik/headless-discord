@@ -241,7 +241,35 @@ class Term:
         Updates content for newly added lines (when they are visible)
         """
 
-        pass
+        # check line pointer (if it exceeds the message field => return)
+        if self.line_ptr > self.message_field:
+            return
+
+        # move cursor to correct line
+        self.set_term_cursor(0, self.line_ptr)
+
+        # calculate start and end
+        start = self.line_offset + self.line_ptr
+        end = min(len(self.lines)-1, start + self.message_field)
+
+        # prevent message field overflows
+        if end - self.line_offset > self.message_field:
+            end = start + self.message_field - self.line_ptr
+
+        # if there is nothing to print => return
+        if end - start == 0:
+            return
+
+        # print lines
+        for line in self.lines[start:end]:
+            self._print(f"{line: <120}")
+
+        # deal with empty lines
+        for _ in range(self.message_field - self.line_ptr):
+            self._print(' ' * 120)
+
+        # flush the print buffer
+        self._flush_buffer()
 
     def print(self, value, flush=True):
         """

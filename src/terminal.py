@@ -220,11 +220,11 @@ class Term:
 
         # calculate start and end
         start = self.line_offset
-        end = min(len(self.lines)-1, start + self.message_field)-1
+        end = min(len(self.lines)-1, start + self.message_field)
 
         # calculate line pointer
         self.line_ptr = end - self.line_offset
 
         for line in self.lines[start:end]:
-            self._print(line)
+            self._print(f"{line: <120}")
         self._flush_buffer()

@@ -52,7 +52,7 @@ def debug():
         terminal.input_callback = input_callback
 
         for x in range(100):
-            terminal.lines.append(f"[{x}] text {x**3}\n")
+            terminal.lines.append(f"[{x}] text {x**3}")
         terminal.update_onscreen_lines()
 
         await asyncio.gather(

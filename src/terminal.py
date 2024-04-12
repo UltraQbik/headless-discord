@@ -271,16 +271,27 @@ class Term:
         # flush the print buffer
         self._flush_buffer()
 
-    def print(self, value, flush=True):
+    def print(self, value):
         """
         High level print method for the terminal
         """
 
-        pass
+        # append new message
+        message = TerminalMessage(content=value.__str__())
+        self.messages.append(message)
+        self.lines += message.lines()
+
+        # print out newest lines
+        self.update_newest()
 
     def log(self, value, flush=True):
         """
         High level print method, but adds [CLIENT] at the beginning
         """
 
-        pass
+        # make value
+        value = CLIENT_LOG + value.__str__()
+        value = value.replace(CS_RESET, f"{CS_RESET}\33[95m")
+
+        # print it out
+        self.print(value)

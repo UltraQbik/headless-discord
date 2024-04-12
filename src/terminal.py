@@ -220,13 +220,13 @@ class Term:
 
         # calculate start and end
         start = self.line_offset
-        end = min(len(self.lines)-1, start + self.message_field - 1)
+        end = min(len(self.lines), start + self.message_field)
 
         # calculate line pointer
         self.line_ptr = end - self.line_offset
 
         # print lines
-        for line in self.lines[start:end+1]:
+        for line in self.lines[start:end]:
             self._print(f"{line: <120}")
 
         # deal with empty lines
@@ -250,7 +250,7 @@ class Term:
 
         # calculate start and end
         start = self.line_offset + self.line_ptr
-        end = min(len(self.lines)-1, start + self.message_field - 1)
+        end = min(len(self.lines), start + self.message_field)
 
         # prevent message field overflows
         if end - self.line_offset > self.message_field:

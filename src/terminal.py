@@ -197,7 +197,7 @@ class Term:
 
         old = self.line_offset
         self.line_offset += offset
-        self.line_offset = max(0, min(len(self.lines), self.line_offset))
+        self.line_offset = max(0, min(len(self.lines)-6, self.line_offset))
         if self.line_offset != old:
             self.update_onscreen_lines()
 
@@ -225,6 +225,13 @@ class Term:
         # calculate line pointer
         self.line_ptr = end - self.line_offset
 
+        # print lines
         for line in self.lines[start:end]:
             self._print(f"{line: <120}")
+
+        # deal with empty lines
+        for _ in range(self.message_field - self.line_ptr):
+            self._print(' '*120)
+
+        # flush the print buffer
         self._flush_buffer()

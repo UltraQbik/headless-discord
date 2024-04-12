@@ -38,14 +38,7 @@ def debug():
 
     async def input_callback(user_input: list[str]):
         user_input = "".join(user_input).strip(" ")
-
-        author = {"username": "godly"}
-        message = Message(
-            content=user_input * 2,
-            timestamp=datetime.now().isoformat(),
-            author=author, mentions=[])
-
-        terminal.print(format_message(message))
+        terminal.print(user_input)
 
     async def coro():
         terminal.clear_terminal()

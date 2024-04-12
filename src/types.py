@@ -123,6 +123,14 @@ class Role:
     """
 
     def __init__(self, **kwargs):
+        """
+        :key id: role id
+        :key name: role name
+        :key color: role color
+        :key position: role position
+        :key permissions: role's permissions value
+        """
+
         self.id: str = kwargs.get("id")
         self.name: str = kwargs.get("name")
         self.color: int = kwargs.get("color")
@@ -136,6 +144,13 @@ class Attachment:
     """
 
     def __init__(self, **kwargs):
+        """
+        :key id: attachment id
+        :key filename: attachment's filename
+        :key size: size in bytes
+        :key url: url to attachment
+        """
+
         self.id: str = kwargs.get("id")
         self.filename: str = kwargs.get("filename")
         self.size: int = kwargs.get("size")
@@ -148,6 +163,14 @@ class Member:
     """
 
     def __init__(self, **kwargs):
+        """
+        :key user: user reference
+        :key guild: member guild
+        :key nick: member's nickname
+        :key roles: member's roles
+        :key permissions: member's permissions
+        """
+
         self.user: User = kwargs.get("user")
         self.guild: Guild | None = ClientUser.known_guilds.get(kwargs.get("guild_id"))
         self.nick: str | None = kwargs.get("nick")
@@ -162,13 +185,17 @@ class User:
     """
 
     def __init__(self, **kwargs):
+        """
+        :key id: user id
+        :key username: user's username
+        :key global_name: global name
+        :key bot: is user a bot
+        """
+
         self.id: str = kwargs.get("id")
         self.username: str = kwargs.get("username")
-        # self.discriminator: str = kwargs.get("discriminator")
         self.global_name: str | None = kwargs.get("global_name")
         self.bot: bool = kwargs.get("bot", False)
-
-        # discriminator will not be added for now, as it's been basically deprecated by discord
 
 
 class Channel:
@@ -177,6 +204,16 @@ class Channel:
     """
 
     def __init__(self, **kwargs):
+        """
+        :key id: channel id
+        :key guild: guild id (if present)
+        :key type: channel type
+        :key name: channel name (if present)
+        :key position: channel position (if present)
+        :key permissions: channels permissions (if present)
+        :key recipients: list of recipients (users)
+        """
+
         self.id: str = kwargs.get("id")
         self.guild: Guild | None = ClientUser.known_guilds.get(kwargs.get("guild_id"))
         self.type: ChannelType = ChannelType(kwargs.get("type"))
@@ -212,6 +249,15 @@ class Guild:
     """
 
     def __init__(self, **kwargs):
+        """
+        :key id: guild id
+        :key name: guild name
+        :key description: guild's description (nullable)
+        :key roles: guild's role list
+        :key channels: list of guild's channels
+        :key members: guild's members
+        """
+
         self.id: str = kwargs.get("id")
         self.name: str = kwargs.get("name")
         self.description: str | None = kwargs.get("description")
@@ -257,6 +303,20 @@ class Message:
     """
 
     def __init__(self, **kwargs):
+        """
+        :key id: message id
+        :key channel: message channel
+        :key author: message's author
+        :key content: message's content
+        :key type: message type
+        :key timestamp: message creation time
+        :key edited_timestamp: message edit time
+        :key mention_everyone: @everyone
+        :key mentions: list of user mentioned
+        :key mention_roles: list of roles mentioned
+        :key attachments: list of attachments
+        """
+
         self.id: str = kwargs.get("id")
         self.channel: Channel | None = ClientUser.known_guilds.get(kwargs.get("channel_id"))
         self.author: User = kwargs.get("author")

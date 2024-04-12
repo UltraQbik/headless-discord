@@ -175,3 +175,12 @@ class Term:
 
         os.system("cls" if os.name == "nt" else "clear")
         self.line_ptr = 0
+
+    def update_lines(self):
+        """
+        Updates content of every line with new messages
+        """
+
+        self.lines.clear()
+        for msg in self.messages:
+            self.lines += msg.lines()

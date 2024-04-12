@@ -114,7 +114,7 @@ class Term:
 
         self._print(f"\33[{self.message_field+2};0H", False)
         to_print = self.user_input[:self.user_cursor]
-        to_print += TERM_CURSOR + self.user_input[self.user_cursor] + CS_RESET
+        to_print += TERM_CURSOR + self.user_input[self.user_cursor] + TERM_INPUT_FIELD
         to_print += self.user_input[self.user_cursor:]
         self._print(to_print)
 
@@ -152,3 +152,11 @@ class Term:
         self.user_cursor += offset
         self.user_cursor = max(0, min(len(self.user_input), self.user_cursor))
         self._update_user_input()
+
+    def clear_terminal(self):
+        """
+        Just clears the terminal
+        """
+
+        os.system("cls" if os.name == "nt" else "clear")
+        self.line_ptr = 0

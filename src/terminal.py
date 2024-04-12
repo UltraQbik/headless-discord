@@ -108,8 +108,15 @@ class Term:
 
         self.print_buffer += value.__str__()
         if flush:
-            print(self.print_buffer, flush=True, end="")
-            self.print_buffer = ""
+            self._flush_buffer()
+
+    def _flush_buffer(self):
+        """
+        Flushes the print buffer
+        """
+
+        print(self.print_buffer, flush=True, end="")
+        self.print_buffer = ""
 
     def _update_user_input(self):
         """
@@ -168,6 +175,13 @@ class Term:
         self.user_cursor += offset
         self.user_cursor = max(0, min(len(self.user_input), self.user_cursor))
 
+    def set_term_cursor(self, x: int, y: int, flush=False):
+        """
+        Sets X and Y position for terminal cursor
+        """
+
+        self._print(f"\33[{y};{x}H", flush=flush)
+
     def clear_terminal(self):
         """
         Just clears the terminal
@@ -184,3 +198,19 @@ class Term:
         self.lines.clear()
         for msg in self.messages:
             self.lines += msg.lines()
+
+    def update_onscreen_lines(self):
+        """
+        Updates content of every terminal line (in message field)
+        """
+
+        # calculate start and end
+        start = self.line_offset
+        end = min(len(self.lines)-1, start + self.message_field)
+
+        # calculate line pointer
+        self.line_ptr = end - self.line_offset
+
+        for line in self.lines[start:end]:
+            self._print(line)
+        self._flush_buffer()

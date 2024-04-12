@@ -16,6 +16,7 @@ class TerminalMessage:
 
     def __init__(self, **kwargs):
         self.content: str | None = kwargs.get("content")
+        self.reference_message: int | None = kwargs.get("reference_message")
 
     def __str__(self) -> str:
         return character_wrap(self.content, Term.term_width)

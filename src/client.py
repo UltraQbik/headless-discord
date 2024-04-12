@@ -205,4 +205,32 @@ async def process_user_input(user_input: list[str]):
     """
 
     string = "".join(user_input)
-    Client.term.log(string)
+
+    # commands
+    if string[:2] == "//":
+        command = string.split(" ")
+
+        # help cmd
+        if command[0] == "help":
+            pass
+
+        # list guilds cmd
+        elif command[0] == "lg" or command[0] == "list_g":
+            pass
+
+        # list channels cmd
+        elif command[0] == "lc" or command[0] == "list_c":
+            pass
+
+        # list private channels cmd
+        elif command[0] == "lprc" or command[0] == "list_pc":
+            pass
+
+        # pick channel cmd
+        elif command[0] == "pkc" or command[0] == "pick_c":
+            pass
+
+    # just a message
+    else:
+        # TODO: api requests
+        pass

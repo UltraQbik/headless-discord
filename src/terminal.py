@@ -124,7 +124,7 @@ class Term:
         """
 
         self._print(f"\33[{self.message_field+2};0H", False)
-        to_print = "".join(self.user_input[:self.user_cursor])
+        to_print = TERM_INPUT_FIELD + "".join(self.user_input[:self.user_cursor])
         to_print += TERM_CURSOR + self.user_input[self.user_cursor] + TERM_INPUT_FIELD
         to_print += "".join(self.user_input[self.user_cursor+1:]) + CS_RESET
         self._print("".join(to_print), True)
@@ -188,6 +188,8 @@ class Term:
         """
 
         os.system("cls" if os.name == "nt" else "clear")
+        self.set_term_cursor(0, self.message_field+1)
+        self._print(f"{TERM_INPUT_FIELD}{'='*120}\n{TERM_INPUT_FIELD}{' '*120}", True)
         self.line_ptr = 0
 
     def change_line(self, offset):
@@ -265,7 +267,7 @@ class Term:
             self._print(f"{line: <120}")
 
         # deal with empty lines
-        for _ in range(self.message_field - self.line_ptr):
+        for _ in range(self.message_field - self.line_ptr - 1):
             self._print(' ' * 120)
 
         # update line pointer

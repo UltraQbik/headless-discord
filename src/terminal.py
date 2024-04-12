@@ -107,4 +107,13 @@ class Term:
             print(self.print_buffer, flush=True, end="")
             self.print_buffer = ""
 
+    def _update_user_input(self):
+        """
+        Updates user input
+        """
 
+        self._print(f"\33[{self.message_field+2};0H", False)
+        to_print = self.user_input[:self.user_cursor]
+        to_print += TERM_CURSOR + self.user_input[self.user_cursor] + CS_RESET
+        to_print += self.user_input[self.user_cursor:]
+        self._print(to_print)

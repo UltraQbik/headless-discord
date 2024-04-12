@@ -235,3 +235,24 @@ class Term:
 
         # flush the print buffer
         self._flush_buffer()
+
+    def update_newest(self):
+        """
+        Updates content for newly added lines (when they are visible)
+        """
+
+        pass
+
+    def print(self, value, flush=True):
+        """
+        High level print method for the terminal
+        """
+
+        pass
+
+    def log(self, value, flush=True):
+        """
+        High level print method, but adds [CLIENT] at the beginning
+        """
+
+        pass

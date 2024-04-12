@@ -117,3 +117,12 @@ class Term:
         to_print += TERM_CURSOR + self.user_input[self.user_cursor] + CS_RESET
         to_print += self.user_input[self.user_cursor:]
         self._print(to_print)
+
+    def _insert_user_input(self, key: str):
+        """
+        Inserts a character at user cursor
+        """
+
+        self.user_input.insert(self.user_cursor, key)
+        self.user_input.pop()
+        self._update_user_input()

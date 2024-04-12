@@ -112,11 +112,11 @@ class Term:
         Updates user input
         """
 
-        self._print(f"\33[{self.message_field+2};0H", False)
+        self._print(f"\33[{self.message_field+1};0H", False)
         to_print = self.user_input[:self.user_cursor]
         to_print += TERM_CURSOR + self.user_input[self.user_cursor] + TERM_INPUT_FIELD
         to_print += self.user_input[self.user_cursor:]
-        self._print(to_print)
+        self._print("".join(to_print), True)
 
     def _insert_user_input(self, key: str):
         """

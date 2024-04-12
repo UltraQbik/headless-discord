@@ -51,8 +51,9 @@ def debug():
         terminal.clear_terminal()
         terminal.input_callback = input_callback
 
-        # for x in range(100):
-        #     terminal.log(f"[{x}] text {x**3}")
+        for x in range(100):
+            terminal.lines.append(f"[{x}] text {x**3}\n")
+        terminal.update_onscreen_lines()
 
         await asyncio.gather(
             terminal.start_listening(),

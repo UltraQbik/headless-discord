@@ -124,9 +124,9 @@ class Term:
         """
 
         self._print(f"\33[{self.message_field+2};0H", False)
-        to_print = self.user_input[:self.user_cursor]
+        to_print = "".join(self.user_input[:self.user_cursor])
         to_print += TERM_CURSOR + self.user_input[self.user_cursor] + TERM_INPUT_FIELD
-        to_print += self.user_input[self.user_cursor+1:]
+        to_print += "".join(self.user_input[self.user_cursor+1:]) + CS_RESET
         self._print("".join(to_print), True)
 
     def _insert_user_input(self, key: str):
@@ -195,8 +195,11 @@ class Term:
         Changes the line offset
         """
 
+        old = self.line_offset
         self.line_offset += offset
         self.line_offset = max(0, min(len(self.lines), self.line_offset))
+        if self.line_offset != old:
+            self.update_onscreen_lines()
 
     def update_lines(self):
         """
@@ -212,9 +215,12 @@ class Term:
         Updates content of every terminal line (in message field)
         """
 
+        # move cursor home (0, 0)
+        self._print("\33[H")
+
         # calculate start and end
         start = self.line_offset
-        end = min(len(self.lines)-1, start + self.message_field)
+        end = min(len(self.lines)-1, start + self.message_field)-1
 
         # calculate line pointer
         self.line_ptr = end - self.line_offset

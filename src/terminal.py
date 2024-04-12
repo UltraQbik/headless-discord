@@ -115,7 +115,7 @@ class Term:
         self._print(f"\33[{self.message_field+1};0H", False)
         to_print = self.user_input[:self.user_cursor]
         to_print += TERM_CURSOR + self.user_input[self.user_cursor] + TERM_INPUT_FIELD
-        to_print += self.user_input[self.user_cursor:]
+        to_print += self.user_input[self.user_cursor+1:]
         self._print("".join(to_print), True)
 
     def _insert_user_input(self, key: str):
@@ -133,8 +133,9 @@ class Term:
         Removes a character at user cursor
         """
 
+        self.user_input.pop(self.user_cursor-1)
         self._move_user_cursor(-1)
-        self.user_input[self.user_cursor] = " "
+        self.user_input.append(" ")
 
     def _clear_user_input(self):
         """

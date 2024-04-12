@@ -80,9 +80,9 @@ class Term:
         elif key == "down":
             self.change_line(5)
         elif key == "left":
-            self._change_user_cursor(-1)
+            self._move_user_cursor(-1)
         elif key == "right":
-            self._change_user_cursor(1)
+            self._move_user_cursor(1)
         elif key == "pageup":
             self.change_line(-self.message_field)
         elif key == "pagedown":
@@ -125,7 +125,16 @@ class Term:
 
         self.user_input.insert(self.user_cursor, key)
         self.user_input.pop()
+        self._move_user_cursor(1)
         self._update_user_input()
+
+    def _pop_user_input(self):
+        """
+        Removes a character at user cursor
+        """
+
+        self._move_user_cursor(-1)
+        self.user_input[self.user_cursor] = ""
 
     def _move_user_cursor(self, offset: int):
         """

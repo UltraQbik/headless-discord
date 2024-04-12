@@ -190,6 +190,14 @@ class Term:
         os.system("cls" if os.name == "nt" else "clear")
         self.line_ptr = 0
 
+    def change_line(self, offset):
+        """
+        Changes the line offset
+        """
+
+        self.line_offset += offset
+        self.line_offset = max(0, min(len(self.lines), self.line_offset))
+
     def update_lines(self):
         """
         Updates content of every line with new messages

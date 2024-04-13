@@ -50,7 +50,7 @@ class TerminalMessage:
         Returns list of lines in message
         """
 
-        return self.__str__().split("\n")
+        return self.__str__().replace("\t", " "*4).split("\n")
 
 
 class Term:

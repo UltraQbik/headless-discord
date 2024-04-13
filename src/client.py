@@ -204,11 +204,11 @@ async def process_user_input(user_input: list[str]):
     Processes user inputted text
     """
 
-    string = "".join(user_input)
+    string = "".join(user_input).rstrip(" ")
 
     # commands
     if string[:2] == "//":
-        command = string.split(" ")
+        command = string[2:].split(" ")
 
         # help cmd
         if command[0] == "help":
@@ -229,6 +229,10 @@ async def process_user_input(user_input: list[str]):
         # pick channel cmd
         elif command[0] == "pkc" or command[0] == "pick_c":
             pass
+
+        # exit cmd
+        elif command[0] == "e" or command[0] == "exit":
+            await Client.sock.close()
 
     # just a message
     else:

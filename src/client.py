@@ -216,11 +216,34 @@ async def process_user_input(user_input: list[str]):
 
         # list guilds cmd
         elif command[0] == "lg" or command[0] == "list_g":
-            pass
+            Client.term.log("list of guilds")
+            for idx, (_, guild) in enumerate(Client.user.known_guilds.items()):
+                Client.term.log(f"\t[{idx}] {guild.name}")
 
         # list channels cmd
         elif command[0] == "lc" or command[0] == "list_c":
-            pass
+            # check amount of arguments
+            if len(command) < 2:
+                Client.term.log(f"please enter the {STYLE_BOLD}guild{CS_RESET} field")
+                return
+
+            # check index
+            try:
+                index = int(command[1])
+                if index > len(Client.user.known_guilds) or index < 0:
+                    raise ValueError
+            except ValueError:
+                Client.term.log(f"incorrect guild index")
+                return
+
+            # get guild
+            for idx, (_, guild) in enumerate(Client.user.known_guilds.items()):
+                if idx == index:
+                    break
+
+            Client.term.log("list of channels")
+            for idx, channel in enumerate(guild.channels):
+                Client.term.log(f"\t[{idx}] {channel.name}")
 
         # list private channels cmd
         elif command[0] == "lprc" or command[0] == "list_pc":

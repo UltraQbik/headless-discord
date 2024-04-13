@@ -242,12 +242,19 @@ async def process_user_input(user_input: list[str]):
                     break
 
             Client.term.log("list of channels")
-            for idx, channel in enumerate(guild.channels):
-                Client.term.log(f"\t[{idx}] {channel.name}")
+            count = 0
+            for channel in guild.channels:
+                if channel.type != 4:
+                    Client.term.log(f"\t[{count}] {channel.name}")
+                    count += 1
+                else:
+                    Client.term.log(f"\t[-] {channel.name}")
 
         # list private channels cmd
         elif command[0] == "lprc" or command[0] == "list_pc":
-            pass
+            Client.term.log("list of private channels")
+            for idx, (_, channel) in enumerate(Client.user.private_channels):
+                Client.term.log(f"[{idx}] {channel.recipients[0].username}")
 
         # pick channel cmd
         elif command[0] == "pkc" or command[0] == "pick_c":

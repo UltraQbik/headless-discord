@@ -273,6 +273,9 @@ class Guild:
         self.channels: list[Channel] = kwargs.get("channels", list())
         self.members: list[Member] = kwargs.get("members", list())
 
+        if self.channels:
+            self.channels.sort(key=lambda x: x.position)
+
     @staticmethod
     def from_response(response: dict):
         """

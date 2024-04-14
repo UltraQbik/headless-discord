@@ -362,7 +362,6 @@ class ClientUser(User):
 
     known_users: list[User] = []
     known_guilds: list[Guild] = []
-    known_channels: list[Channel] = []
     private_channels: list[Channel] = []
     focus_channel: Channel | None = None
 
@@ -389,6 +388,18 @@ class ClientUser(User):
         for guild in cls.known_guilds:
             if guild.id == gid:
                 return guild
+        return None
+
+    @classmethod
+    def get_channel(cls, cid: str) -> Channel | None:
+        """
+        Returns a channel by ID. None if that channel doesn't exist
+        """
+
+        for guild in cls.known_guilds:
+            for channel in guild.channels:
+                if channel.id == cid:
+                    return channel
         return None
 
 

@@ -322,12 +322,12 @@ class Term:
         High level print method, but adds [CLIENT] at the beginning
         """
 
-        # make value
-        value = CLIENT_LOG + " " + value.__str__()
-        value = value.replace(CS_RESET, f"{CS_RESET}\33[95m") + CS_RESET
+        # make string consistent
+        string = value.__str__()
+        string = f"{CLIENT_LOG} {string.replace(CS_RESET, f"{CS_RESET}\33[95m")}{CS_RESET}"
 
         # print it out
-        self.print(value.__repr__())
+        self.print(string)
 
     def print_message(self, message: Message):
         """

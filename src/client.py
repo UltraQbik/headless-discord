@@ -246,7 +246,7 @@ async def process_user_input(user_input: list[str]):
             Client.term.log("list of channels")
             count = 0
             for channel in Client.user.known_guilds[index].channels:
-                if channel.type != 4:
+                if channel.type != ChannelType.GUILD_CATEGORY:
                     Client.term.log(f"\t[{count}] {channel.name}")
                     count += 1
                 else:

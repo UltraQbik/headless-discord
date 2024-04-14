@@ -283,49 +283,49 @@ class Guild:
         """
 
         # tree of categories
-        categories = {"default": []}
+        categories = []
 
-        # find and append all GUILD_CATEGORY's
+        # append all categories
         for channel in self.channels:
             if channel.type == ChannelType.GUILD_CATEGORY:
-                categories[channel.id] = []
+                categories.append(
+                    {
+                        "category": channel,
+                        "items": []})
 
-        # build a tree
+        # append channels to categories
         for channel in self.channels:
-            # skip categories
+            # skip category channels
             if channel.type == ChannelType.GUILD_CATEGORY:
                 continue
 
-            # if channel doesn't belong to a category
+            # if channels doesn't belong to any category
             if channel.parent_id is None:
-                categories["default"].append(channel)
+                categories.append(channel)
 
-            # if channel does belong
+            # if it does, find category and append
             else:
-                categories[channel.parent_id].append(channel)
+                for cat in categories:
+                    if not isinstance(cat, dict):
+                        continue
+                    if cat["category"].id == channel.parent_id:
+                        cat["items"].append(channel)
+                        break
 
-        # make new channel list
-        # default category is always first for now
-        new_channels = categories["default"]
+        # sort everything
+        categories.sort(key=lambda x: x.position if isinstance(x, Channel) else x["category"].position)
 
-        # sort everything and append
-        for category, channel_list in categories.items():
-            # ignore default category
-            if category == "default":
-                continue
+        # make new channel list and assign as a new one
+        new_channels = []
+        for cat in categories:
+            # append channel
+            if isinstance(cat, Channel):
+                new_channels.append(cat)
 
-            # sort the rest
-            channel_list.sort(key=lambda x: x.position)
-
-            # search and append category
-            for channel in self.channels:
-                if channel.type == ChannelType.GUILD_CATEGORY and category == channel.id:
-                    new_channels.append(channel)
-
-            # append sorted channels
-            new_channels += channel_list
-
-        # assign new channel list to be the main one
+            # append channels within a category
+            else:
+                new_channels.append(cat["category"])
+                new_channels += cat["items"]
         self.channels = new_channels
 
     @staticmethod

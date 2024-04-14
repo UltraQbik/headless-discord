@@ -151,6 +151,14 @@ class Client:
 
         await cls.send_request({"op": 1, "d": cls.sequence})
 
+    @classmethod
+    async def on_ready(cls):
+        """
+        Gets called when ready
+        """
+
+        cls.term.log("ready!")
+
 
 async def process_event(event):
     """
@@ -202,6 +210,8 @@ async def process_event(event):
                 channels=[Channel(**x) for x in guild_raw["channels"]])
 
             Client.user.known_guilds.append(guild)
+
+        await Client.on_ready()
 
     # READY_SUPPLEMENTAL event (after READY event)
     elif event_type == "READY_SUPPLEMENTAL":

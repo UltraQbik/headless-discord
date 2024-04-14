@@ -443,7 +443,7 @@ class Message:
 
         # check if author is already known
         if event_data["author"]["id"] in ClientUser.known_users:
-            author = ClientUser.known_users[event_data["author"]["id"]]
+            author = ClientUser.get_user(event_data["author"]["id"])
 
         # otherwise make new user
         else:
@@ -452,12 +452,12 @@ class Message:
                 username=event_data["author"]["username"],
                 global_name=event_data["author"]["global_name"],
                 bot=event_data["author"].get("bot"))
-            ClientUser.known_users[author.id] = author
+            ClientUser.known_users.append(author)
 
         # if this is in a guild
         if event_data.get("member"):
             # fetch guild
-            guild = ClientUser.known_guilds[event_data["guild_id"]]
+            guild = ClientUser.get_guild(event_data["guild_id"])
 
             # fetch roles
             roles = []
@@ -475,6 +475,8 @@ class Message:
 
         else:
             message.author = author
+
+        return message
 
         # TODO: add mentions
         # TODO: add mention roles

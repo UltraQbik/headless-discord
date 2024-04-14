@@ -47,7 +47,7 @@ def debug():
         for x in range(10):
             terminal.print(f"[{x}] text {x**3}")
 
-        # not counted properly?
+        # not counted properly? fixed in commit 20ffcbe0bb8c01930cd30d7e2a576cfe2881bb70
         terminal.print("👀👀👀👀")
 
         await asyncio.gather(

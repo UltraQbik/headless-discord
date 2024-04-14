@@ -253,23 +253,24 @@ async def process_user_input(user_input: list[str]):
                     Client.term.log(f"\t[ ] {channel.name}")
 
         # list private channels cmd
-        elif command[0] == "lprc" or command[0] == "list_pc":
+        elif command[0] == "lpc" or command[0] == "list_pc":
             Client.term.log("list of private channels")
             for idx, channel in enumerate(Client.user.private_channels):
                 Client.term.log(f"\t[{idx}] {channel.recipients[0].username}")
 
         # pick channel cmd
-        elif command[0] == "pkc" or command[0] == "pick_c":
+        elif command[0] == "pc" or command[0] == "pick_c":
             # check amount of arguments
             if len(command) < 3:
                 Client.term.log(f"use {STYLE_BOLD}//help{CS_RESET} to check command syntax")
                 return
 
+            # private channels
             if command[1] == "-":
                 # check index
                 try:
                     channel_idx = int(command[2])
-                    if channel_idx > len(Client.user.known_guilds) or channel_idx < 0:
+                    if channel_idx > len(Client.user.private_channels) or channel_idx < 0:
                         raise ValueError
                 except ValueError:
                     Client.term.log(f"incorrect channel index")
@@ -277,6 +278,34 @@ async def process_user_input(user_input: list[str]):
 
                 Client.user.focus_channel = Client.user.private_channels[channel_idx]
                 Client.term.log(f"now chatting with {Client.user.focus_channel.recipients[0].username}")
+
+            # guild channels
+            else:
+                # check guild index
+                try:
+                    guild_idx = int(command[1])
+                    if guild_idx > len(Client.user.known_guilds) or guild_idx < 0:
+                        raise ValueError
+                except ValueError:
+                    Client.term.log(f"incorrect guild index")
+                    return
+                # check channel index
+                try:
+                    channel_idx = int(command[2])
+                    count = 0
+                    for channel in Client.user.known_guilds[guild_idx].channels:
+                        if channel_idx == count:
+                            break
+                        if channel.type != ChannelType.GUILD_CATEGORY:
+                            count += 1
+                    else:
+                        raise ValueError
+                except ValueError:
+                    Client.term.log(f"incorrect channel index")
+                    return
+
+                Client.user.focus_channel = channel
+                Client.term.log(f"now focused on {Client.user.focus_channel.name}")
 
         # exit cmd
         elif command[0] == "e" or command[0] == "exit":

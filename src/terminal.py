@@ -295,9 +295,9 @@ class Term:
         High level print method, but adds [CLIENT] at the beginning
         """
 
-        # make string consistent
-        string = value.__str__()
-        string = f"{CLIENT_LOG} {string.replace(CS_RESET, f"{CS_RESET}\33[95m")}{CS_RESET}"
+        # make string (slightly) more consistent
+        string = value.__str__().replace(CS_RESET, f"{CS_RESET}{CLIENT_COL[2]}")
+        string = f"{CLIENT_COL[0]}[CLIENT]{CLIENT_COL[2]} {string}{CS_RESET}"
 
         # print it out
         self.print(string)

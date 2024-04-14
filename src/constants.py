@@ -20,11 +20,35 @@ STYLE_UNDERLINE = "\33[4m"
 STYLE_STRIKETHROUGH = "\33[9m"
 
 # client
-CLIENT_LOG = "\33[35m[CLIENT]\33[95m"
+CLIENT_COL = [
+    "\33[38;5;93m",
+    "\33[38;5;135m",
+    "\33[38;5;177m",
+    "\33[38;5;219m"]
 CLIENT_HELP = [
-    "//help - prints out this message",
-    "//list_g - prints out list of all guilds",
-    f"//list_c {STYLE_UNDERLINE}guild{CS_RESET} - prints out channels in a guild",
-    f"//pick_c {STYLE_UNDERLINE}guild{CS_RESET} {STYLE_UNDERLINE}channel{CS_RESET} - selects a channel to view",
-    "//exit - closes the connection"
+    {
+        "cmd": ["lg", "list_g"],
+        "args": [],
+        "text": "lists all known to user guilds"
+    },
+    {
+        "cmd": ["lc", "list_c"],
+        "args": ["guild"],
+        "text": "lists all channels in a guild"
+    },
+    {
+        "cmd": ["lpc", "list_pc"],
+        "args": [],
+        "text": "lists all private channels (dms)"
+    },
+    {
+        "cmd": ["pc", "pick_c"],
+        "args": ["guild/channel", "channel"],
+        "text": "pick channel to focus on. Private channel is arg 1"
+    },
+    {
+        "cmd": ["e", "exit"],
+        "args": [],
+        "text": "close connection and exit"
+    }
 ]

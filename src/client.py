@@ -46,6 +46,20 @@ class Client:
         await cls.sock.send(json.dumps(request))
 
     @classmethod
+    async def send_post_request(cls, **kwargs):
+        """
+        Sends POST API request
+        """
+
+        # append authorization header is missing
+        if "headers" not in kwargs:
+            kwargs["headers"] = {}
+        if "Authorization" not in kwargs["headers"]:
+            kwargs["headers"]["Authorization"] = cls.auth
+
+        return await asyncio.to_thread(requests.post, **kwargs)
+
+    @classmethod
     def run(cls, token: str) -> None:
         """
         Connects the client
@@ -219,7 +233,16 @@ async def process_user_input(user_input: list[str]):
 
         # help cmd
         if command[0] == "help":
-            pass
+            Client.term.log("list of commands")
+            for cmd in CLIENT_HELP:
+                aliases = f" {CLIENT_COL[2]}or{CLIENT_COL[3]} ".join(cmd['cmd'])
+                aliases += " " if cmd['args'] else ""
+                args = f" ".join(cmd['args'])
+                Client.term.log(
+                    f"\t{CLIENT_COL[3]}{aliases}{CLIENT_COL[2]}"
+                    f"{STYLE_ITALICS}{args}{CS_RESET}"
+                    f"{CLIENT_COL[2]} - {cmd['text']}"
+                )
 
         # list guilds cmd
         elif command[0] == "lg" or command[0] == "list_g":

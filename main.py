@@ -47,6 +47,9 @@ def debug():
         for x in range(100):
             terminal.print(f"[{x}] text {x**3}")
 
+        for _ in range(10):
+            terminal.log("\t╭───┤𝐆𝐄𝐍𝐄𝐑𝐀𝐋├──────")
+
         await asyncio.gather(
             terminal.start_listening(),
             while_true())

@@ -227,6 +227,7 @@ class Channel:
         self.type: ChannelType = ChannelType(kwargs.get("type"))
         self.name: str | None = kwargs.get("name")
         self.position: int = kwargs.get("position", 0)
+        self.parent_id: str | None = kwargs.get("parent_id")
         self.permissions: Permissions | None = Permissions(
             int(kwargs.get("permissions"))) if "permissions" in kwargs else None
         self.recipients: list[User] = kwargs.get("recipients", list())
@@ -246,6 +247,7 @@ class Channel:
             type=response["type"],  # always present
             name=response.get("name"),  # may be present, nullable
             position=response.get("position", 0),  # may be present
+            parent_id=response.get("parent_id"),  # may be present, nullable
             permissions=response.get("permissions"),  # may be present
             recipients=recipients
         )
@@ -273,8 +275,58 @@ class Guild:
         self.channels: list[Channel] = kwargs.get("channels", list())
         self.members: list[Member] = kwargs.get("members", list())
 
-        if self.channels:
-            self.channels.sort(key=lambda x: x.position)
+        self._annoying_sort()
+
+    def _annoying_sort(self):
+        """
+        Sorts the channels properly (keeping in mind GUILD_CATEGORY)
+        """
+
+        # tree of categories
+        categories = {"default": []}
+
+        # find and append all GUILD_CATEGORY's
+        for channel in self.channels:
+            if channel.type == ChannelType.GUILD_CATEGORY:
+                categories[channel.id] = []
+
+        # build a tree
+        for channel in self.channels:
+            # skip categories
+            if channel.type == ChannelType.GUILD_CATEGORY:
+                continue
+
+            # if channel doesn't belong to a category
+            if channel.parent_id is None:
+                categories["default"].append(channel)
+
+            # if channel does belong
+            else:
+                categories[channel.parent_id].append(channel)
+
+        # make new channel list
+        # default category is always first for now
+        new_channels = categories["default"]
+
+        # sort everything and append
+        for category, channel_list in categories.items():
+            # ignore default category
+            if category == "default":
+                continue
+
+            # sort the rest
+            channel_list.sort(key=lambda x: x.position)
+
+            # search and append category
+            for channel in self.channels:
+                if channel.type == ChannelType.GUILD_CATEGORY and category == channel.id:
+                    new_channels.append(channel)
+
+            # append sorted channels
+            new_channels += channel_list
+
+        # assign new channel list to be the main one
+        self.channels = new_channels
 
     @staticmethod
     def from_response(response: dict):

@@ -223,7 +223,7 @@ class Channel:
         """
 
         self.id: str = kwargs.get("id")
-        self.guild: Guild | None = ClientUser.known_guilds.get(kwargs.get("guild_id"))
+        self.guild: Guild | None = ClientUser.get_guild(kwargs.get("guild_id"))
         self.type: ChannelType = ChannelType(kwargs.get("type"))
         self.name: str | None = kwargs.get("name")
         self.position: int = kwargs.get("position", 0)
@@ -296,14 +296,49 @@ class ClientUser(User):
     Client user
     """
 
-    known_users: dict[str, User] = {}
-    known_guilds: dict[str, Guild] = {}
-    known_channels: dict[str, Channel] = {}
-    private_channels: dict[str, Channel] = {}
+    known_users: list[User] = []
+    known_guilds: list[Guild] = []
+    known_channels: list[Channel] = []
+    private_channels: list[Channel] = []
     focus_channel: Channel | None = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+    @classmethod
+    def get_user(cls, uid: str) -> User | None:
+        """
+        Returns a user by ID. None if that user doesn't exist
+        """
+
+        for user in cls.known_users:
+            if user.id == uid:
+                return user
+        return None
+
+    @classmethod
+    def get_guild(cls, gid: str) -> Guild | None:
+        """
+        Returns a guild by ID. None if that guild doesn't exist
+        """
+
+        for guild in cls.known_guilds:
+            if guild.id == gid:
+                return guild
+        return None
+
+    @classmethod
+    def get_channel(cls, cid: str) -> Channel | None:
+        """
+        Returns a channel by ID. None if that guild doesn't exist
+        """
+
+        # not final implementation
+
+        for channel in cls.known_channels:
+            if channel.id == cid:
+                return channel
+        return None
 
 
 class Message:
@@ -327,7 +362,7 @@ class Message:
         """
 
         self.id: str = kwargs.get("id")
-        self.channel: Channel | None = ClientUser.known_channels.get(kwargs.get("channel_id"))
+        self.channel: Channel | None = ClientUser.get_channel(kwargs.get("channel_id"))
         self.author: User | Member = kwargs.get("author")
         self.content: str = kwargs.get("content")
         self.type: MessageType = MessageType(int(kwargs.get("type")))

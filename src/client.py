@@ -160,16 +160,23 @@ async def process_event(event):
                 username=user_raw["username"],
                 global_name=user_raw["global_name"],
                 bot=user_raw["bot"])
-            Client.user.known_users[user.id] = user
+
+            Client.user.known_users.append(user)
 
         # get all private channels
         for channel_raw in event_data["private_channels"]:
+            # get recipients
+            recipients = []
+            for usr in Client.user.known_users:
+                if usr.id in channel_raw["recipient_ids"]:
+                    recipients.append(usr)
+
             channel = Channel(
                 id=channel_raw["id"],
                 type=channel_raw["type"],
-                recipients=[Client.user.known_users[x] for x in channel_raw["recipient_ids"]])
+                recipients=recipients)
 
-            Client.user.private_channels[channel.id] = channel
+            Client.user.private_channels.append(channel)
 
         # get some guilds
         for guild_raw in event_data["guilds"]:
@@ -180,7 +187,7 @@ async def process_event(event):
                 roles=[Role(**x) for x in guild_raw["roles"]],
                 channels=[Channel(**x) for x in guild_raw["channels"]])
 
-            Client.user.known_guilds[guild.id] = guild
+            Client.user.known_guilds.append(guild)
 
     # READY_SUPPLEMENTAL event (after READY event)
     elif event_type == "READY_SUPPLEMENTAL":
@@ -217,7 +224,7 @@ async def process_user_input(user_input: list[str]):
         # list guilds cmd
         elif command[0] == "lg" or command[0] == "list_g":
             Client.term.log("list of guilds")
-            for idx, (_, guild) in enumerate(Client.user.known_guilds.items()):
+            for idx, guild in enumerate(Client.user.known_guilds):
                 Client.term.log(f"\t[{idx}] {guild.name}")
 
         # list channels cmd
@@ -236,14 +243,9 @@ async def process_user_input(user_input: list[str]):
                 Client.term.log(f"incorrect guild index")
                 return
 
-            # get guild
-            for idx, (_, guild) in enumerate(Client.user.known_guilds.items()):
-                if idx == index:
-                    break
-
             Client.term.log("list of channels")
             count = 0
-            for channel in guild.channels:
+            for channel in Client.user.known_guilds[index].channels:
                 if channel.type != 4:
                     Client.term.log(f"\t[{count}] {channel.name}")
                     count += 1
@@ -253,7 +255,7 @@ async def process_user_input(user_input: list[str]):
         # list private channels cmd
         elif command[0] == "lprc" or command[0] == "list_pc":
             Client.term.log("list of private channels")
-            for idx, (_, channel) in enumerate(Client.user.private_channels):
+            for idx, channel in enumerate(Client.user.private_channels):
                 Client.term.log(f"[{idx}] {channel.recipients[0].username}")
 
         # pick channel cmd

@@ -330,19 +330,6 @@ class ClientUser(User):
                 return guild
         return None
 
-    @classmethod
-    def get_channel(cls, cid: str) -> Channel | None:
-        """
-        Returns a channel by ID. None if that guild doesn't exist
-        """
-
-        # not final implementation
-
-        for channel in cls.known_channels:
-            if channel.id == cid:
-                return channel
-        return None
-
 
 class Message:
     """

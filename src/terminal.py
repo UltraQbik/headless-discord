@@ -324,10 +324,10 @@ class Term:
 
         # make value
         value = CLIENT_LOG + " " + value.__str__()
-        value = value.replace(CS_RESET, f"{CS_RESET}\33[95m")
+        value = value.replace(CS_RESET, f"{CS_RESET}\33[95m") + CS_RESET
 
         # print it out
-        self.print(value)
+        self.print(value.__repr__())
 
     def print_message(self, message: Message):
         """

@@ -44,11 +44,11 @@ def debug():
         terminal.clear_terminal()
         terminal.input_callback = input_callback
 
-        for x in range(100):
+        for x in range(10):
             terminal.print(f"[{x}] text {x**3}")
 
-        for _ in range(10):
-            terminal.log("\t╭───┤𝐆𝐄𝐍𝐄𝐑𝐀𝐋├──────")
+        # not counted properly?
+        terminal.print("👀👀👀👀")
 
         await asyncio.gather(
             terminal.start_listening(),

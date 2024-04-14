@@ -266,7 +266,7 @@ async def process_user_input(user_input: list[str]):
                 Client.term.log(f"incorrect guild index")
                 return
 
-            Client.term.log("list of channels")
+            Client.term.log(f"list of channels for [{index}]")
             count = 0
             for channel in Client.user.known_guilds[index].channels:
                 if channel.type != ChannelType.GUILD_CATEGORY:
@@ -284,15 +284,15 @@ async def process_user_input(user_input: list[str]):
         # pick channel cmd
         elif command[0] == "pc" or command[0] == "pick_c":
             # check amount of arguments
-            if len(command) < 3:
+            if len(command) < 2:
                 Client.term.log(f"use {STYLE_BOLD}//help{CS_RESET} to check command syntax")
                 return
 
             # private channels
-            if command[1] == "-":
+            if len(command) == 2:
                 # check index
                 try:
-                    channel_idx = int(command[2])
+                    channel_idx = int(command[1])
                     if channel_idx > len(Client.user.private_channels) or channel_idx < 0:
                         raise ValueError
                 except ValueError:
@@ -317,7 +317,7 @@ async def process_user_input(user_input: list[str]):
                     channel_idx = int(command[2])
                     count = 0
                     for channel in Client.user.known_guilds[guild_idx].channels:
-                        if channel_idx == count:
+                        if channel_idx == count and channel.type != ChannelType.GUILD_CATEGORY:
                             break
                         if channel.type != ChannelType.GUILD_CATEGORY:
                             count += 1
@@ -336,5 +336,10 @@ async def process_user_input(user_input: list[str]):
 
     # just a message
     else:
-        # TODO: api requests
-        pass
+        if Client.user.focus_channel:
+            await Client.send_post_request(
+                url=f"{API}/channels/{Client.user.focus_channel.id}/messages",
+                json={"content": string})
+        else:
+            Client.term.log(
+                f"please pick a channel first. Use {CLIENT_COL[3]}//help{CLIENT_COL[2]} to see all commands")

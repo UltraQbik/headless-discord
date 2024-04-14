@@ -151,13 +151,13 @@ class Client:
 
         await cls.send_request({"op": 1, "d": cls.sequence})
 
-    @classmethod
-    async def on_ready(cls):
+    @staticmethod
+    async def on_ready():
         """
         Gets called when ready
         """
 
-        cls.term.log("ready!")
+        Client.term.log("ready!")
 
 
 async def process_event(event):

@@ -215,7 +215,7 @@ async def process_event(event):
 
     # MESSAGE_CREATE
     elif event_type == "MESSAGE_CREATE":
-        if Client.user.focus_channel and event_data["id"] == Client.user.focus_channel.id:
+        if Client.user.focus_channel and event_data["channel_id"] == Client.user.focus_channel.id:
             message = Message.from_create_event(event_data)
             Client.term.print_message(message)
 

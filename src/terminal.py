@@ -10,29 +10,6 @@ from .formatting import *
 os.system("")
 
 
-def char_len(string: str) -> int:
-    """
-    Returns length of string, excluding the ANSI escape sequences
-    """
-
-    # if there are no escape sequences, just return length
-    if string.find("\33") == -1:
-        return len(string)
-
-    count = 0
-    is_escape = False
-    for char in string:
-        if char == "\33":
-            is_escape = True
-            continue
-        if is_escape and char in "mHKJ":
-            is_escape = False
-            continue
-        if not is_escape:
-            count += 1
-    return count
-
-
 class TerminalMessage:
     """
     Message that the terminal prints
@@ -255,12 +232,10 @@ class Term:
 
         # print lines
         for line in self.lines[start:end]:
-            spaces = " " * (self.term_width - char_len(line))
-            self._print(f"{line}{spaces}")
+            self._print(f"{line}\33[0K\n")
 
         # deal with empty lines
-        for _ in range(self.message_field - self.line_ptr):
-            self._print(' ' * self.term_width)
+        self._print("\33[0K\n" * (self.message_field - self.line_ptr))
 
         # flush the print buffer
         self._flush_buffer()
@@ -291,12 +266,10 @@ class Term:
 
         # print lines
         for line in self.lines[start:end]:
-            spaces = " " * (self.term_width - char_len(line))
-            self._print(f"{line}{spaces}")
+            self._print(f"{line}\33[0K\n")
 
         # deal with empty lines
-        for _ in range(self.message_field - self.line_ptr - 1):
-            self._print(' ' * self.term_width)
+        self._print("\33[0K\n" * (self.message_field - self.line_ptr - 1))
 
         # update line pointer
         self.line_ptr += end - start

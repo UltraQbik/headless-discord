@@ -201,7 +201,7 @@ async def process_event(event):
 
     # MESSAGE_CREATE
     elif event_type == "MESSAGE_CREATE":
-        if event_data["id"] == Client.user.focus_channel.id:
+        if Client.user.focus_channel and event_data["id"] == Client.user.focus_channel.id:
             message = Message.from_create_event(event_data)
             Client.term.print_message(message)
 
@@ -250,17 +250,33 @@ async def process_user_input(user_input: list[str]):
                     Client.term.log(f"\t[{count}] {channel.name}")
                     count += 1
                 else:
-                    Client.term.log(f"\t[-] {channel.name}")
+                    Client.term.log(f"\t[ ] {channel.name}")
 
         # list private channels cmd
         elif command[0] == "lprc" or command[0] == "list_pc":
             Client.term.log("list of private channels")
             for idx, channel in enumerate(Client.user.private_channels):
-                Client.term.log(f"[{idx}] {channel.recipients[0].username}")
+                Client.term.log(f"\t[{idx}] {channel.recipients[0].username}")
 
         # pick channel cmd
         elif command[0] == "pkc" or command[0] == "pick_c":
-            pass
+            # check amount of arguments
+            if len(command) < 3:
+                Client.term.log(f"use {STYLE_BOLD}//help{CS_RESET} to check command syntax")
+                return
+
+            if command[1] == "-":
+                # check index
+                try:
+                    channel_idx = int(command[2])
+                    if channel_idx > len(Client.user.known_guilds) or channel_idx < 0:
+                        raise ValueError
+                except ValueError:
+                    Client.term.log(f"incorrect channel index")
+                    return
+
+                Client.user.focus_channel = Client.user.private_channels[channel_idx]
+                Client.term.log(f"now chatting with {Client.user.focus_channel.recipients[0].username}")
 
         # exit cmd
         elif command[0] == "e" or command[0] == "exit":

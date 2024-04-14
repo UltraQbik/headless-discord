@@ -312,6 +312,15 @@ class Guild:
                         cat["items"].append(channel)
                         break
 
+        # sort channels inside categories
+        for cat in categories:
+            # skip default channels
+            if isinstance(cat, Channel):
+                continue
+
+            # sort channels inside category
+            cat["items"].sort(key=lambda x: x.position)
+
         # sort everything
         categories.sort(key=lambda x: x.position if isinstance(x, Channel) else x["category"].position)
 

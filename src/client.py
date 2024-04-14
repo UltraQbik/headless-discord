@@ -173,7 +173,7 @@ async def process_event(event):
                 id=user_raw["id"],
                 username=user_raw["username"],
                 global_name=user_raw["global_name"],
-                bot=user_raw["bot"])
+                bot=user_raw.get("bot"))
 
             Client.user.known_users.append(user)
 

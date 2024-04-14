@@ -182,7 +182,7 @@ class Member:
         if kwargs.get("guild"):
             self.guild = kwargs["guild"]
         elif kwargs.get("guild_id"):
-            self.guild: Guild = ClientUser.known_guilds.get(kwargs.get("guild_id"))
+            self.guild: Guild = ClientUser.get_guild(kwargs.get("guild_id"))
         else:
             self.guild = None
 

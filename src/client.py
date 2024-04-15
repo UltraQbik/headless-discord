@@ -14,12 +14,12 @@ class Client:
     """
 
     # connection
-    auth: str | None = None
-    sock: websockets.WebSocketClientProtocol | None = None
+    _auth: str | None = None
+    _sock: websockets.WebSocketClientProtocol | None = None
 
     # keep alive
-    heartbeat_interval: int = 41250
-    sequence: int | None = None
+    _heartbeat_interval: int = 41250
+    _sequence: int | None = None
 
     # terminal
     term: Term = Term()
@@ -33,7 +33,7 @@ class Client:
         Gets request from connected socket
         """
 
-        response = await cls.sock.recv()
+        response = await cls._sock.recv()
         if response:
             return json.loads(response)
 
@@ -43,7 +43,7 @@ class Client:
         Sends a request to connected socket
         """
 
-        await cls.sock.send(json.dumps(request))
+        await cls._sock.send(json.dumps(request))
 
     @classmethod
     async def send_post_request(cls, **kwargs):
@@ -55,7 +55,7 @@ class Client:
         if "headers" not in kwargs:
             kwargs["headers"] = {}
         if "Authorization" not in kwargs["headers"]:
-            kwargs["headers"]["Authorization"] = cls.auth
+            kwargs["headers"]["Authorization"] = cls._auth
 
         return await asyncio.to_thread(requests.post, **kwargs)
 
@@ -67,14 +67,14 @@ class Client:
 
         async def coro():
             async with websockets.connect(GATEWAY) as websock:
-                cls.sock = websock
-                cls.heartbeat_interval = (await cls.get_request())['d']['heartbeat_interval']
+                cls._sock = websock
+                cls._heartbeat_interval = (await cls.get_request())['d']['heartbeat_interval']
                 cls.term.log("connection successful")
                 await cls.send_request(
                     {
                         "op": 2,
                         "d": {
-                            "token": cls.auth,
+                            "token": cls._auth,
                             "capabilities": 16381,
                             "properties": {
                                 "os": "Windows",
@@ -99,11 +99,11 @@ class Client:
                 cls.term.log("authentication successful")
                 cls.term.input_callback = process_user_input
                 await asyncio.gather(
-                    cls.keep_alive(),
-                    cls.process_events(),
+                    cls._keep_alive(),
+                    cls._event_handle(),
                     cls.term.start_listening()
                 )
-        cls.auth = token
+        cls._auth = token
         cls.term.clear_terminal()
         cls.term.log("attempting connection")
         try:
@@ -117,117 +117,133 @@ class Client:
         cls.term.log("connection closed")
 
     @classmethod
-    async def process_events(cls):
+    async def _event_handle(cls):
         """
         Processes discord gateway sent events
         """
 
         while True:
             response = await cls.get_request()
-            cls.sequence = response["s"] if response["s"] else cls.sequence
+            cls._sequence = response["s"] if response["s"] else cls._sequence
 
-            await process_event(response)
+            await cls._process_event(response)
 
     @classmethod
-    async def keep_alive(cls):
+    async def _keep_alive(cls):
         """
         Keeps the connection alive
         """
 
         # send first heartbeat
-        await asyncio.sleep(cls.heartbeat_interval * random() / 1000)
-        await cls.send_heartbeat()
+        await asyncio.sleep(cls._heartbeat_interval * random() / 1000)
+        await cls._send_heartbeat()
 
         # keep alive
-        while cls.sock.open:
-            await asyncio.sleep(cls.heartbeat_interval / 1000)
-            await cls.send_heartbeat()
+        while cls._sock.open:
+            await asyncio.sleep(cls._heartbeat_interval / 1000)
+            await cls._send_heartbeat()
 
     @classmethod
-    async def send_heartbeat(cls):
+    async def _send_heartbeat(cls):
         """
         Sends heartbeat to gateway
         """
 
-        await cls.send_request({"op": 1, "d": cls.sequence})
+        await cls.send_request({"op": 1, "d": cls._sequence})
 
-    @staticmethod
-    async def on_ready():
+    @classmethod
+    async def close(cls):
         """
-        Gets called when ready
+        Closes the connection
         """
 
-        Client.term.log("ready!")
+        await cls._sock.close()
 
+    @classmethod
+    async def on_ready(cls):
+        """
+        Stuff that will happen after the READY event was processed
+        """
 
-async def process_event(event):
-    """
-    Processes the event
-    """
+        cls.term.log("ready!")
 
-    event_type = event["t"]
-    event_data = event["d"]
+    @classmethod
+    async def on_message_create(cls, message: Message):
+        """
+        Stuff that will happen when a message is received
+        """
 
-    # READY event (when authorised)
-    if event_type == "READY":
-        # get current's user info
-        Client.user = ClientUser(
-            id=event_data["user"]["id"],
-            username=event_data["user"]["username"])
+        if cls.user.focus_channel and message.channel.id == cls.user.focus_channel.id:
+            cls.term.print_message(message)
 
-        # get known users
-        for user_raw in event_data["users"]:
-            user = User(
-                id=user_raw["id"],
-                username=user_raw["username"],
-                global_name=user_raw["global_name"],
-                bot=user_raw.get("bot"))
+    @classmethod
+    async def _process_event(cls, event):
+        """
+        Processes the event
+        """
 
-            Client.user.known_users.append(user)
+        event_type = event["t"]
+        event_data = event["d"]
 
-        # get all private channels
-        for channel_raw in event_data["private_channels"]:
-            # get recipients
-            recipients = []
-            for usr in Client.user.known_users:
-                if usr.id in channel_raw["recipient_ids"]:
-                    recipients.append(usr)
+        # READY event (when authorised)
+        if event_type == "READY":
+            # get current's user info
+            cls.user = ClientUser(
+                id=event_data["user"]["id"],
+                username=event_data["user"]["username"])
 
-            channel = Channel(
-                id=channel_raw["id"],
-                type=channel_raw["type"],
-                recipients=recipients)
+            # get known users
+            for user_raw in event_data["users"]:
+                user = User(
+                    id=user_raw["id"],
+                    username=user_raw["username"],
+                    global_name=user_raw["global_name"],
+                    bot=user_raw.get("bot"))
 
-            Client.user.private_channels.append(channel)
+                cls.user.known_users.append(user)
 
-        # get some guilds
-        for guild_raw in event_data["guilds"]:
-            guild = Guild(
-                id=guild_raw["id"],
-                name=guild_raw["properties"]["name"],
-                description=guild_raw["properties"]["description"],
-                roles=[Role(**x) for x in guild_raw["roles"]],
-                channels=[Channel(**x) for x in guild_raw["channels"]])
+            # get all private channels
+            for channel_raw in event_data["private_channels"]:
+                # get recipients
+                recipients = []
+                for usr in cls.user.known_users:
+                    if usr.id in channel_raw["recipient_ids"]:
+                        recipients.append(usr)
 
-            Client.user.known_guilds.append(guild)
+                channel = Channel(
+                    id=channel_raw["id"],
+                    type=channel_raw["type"],
+                    recipients=recipients)
 
-        await Client.on_ready()
+                cls.user.private_channels.append(channel)
 
-    # READY_SUPPLEMENTAL event (after READY event)
-    elif event_type == "READY_SUPPLEMENTAL":
-        # data here is not very useful (yet)
-        pass
+            # get some guilds
+            for guild_raw in event_data["guilds"]:
+                guild = Guild(
+                    id=guild_raw["id"],
+                    name=guild_raw["properties"]["name"],
+                    description=guild_raw["properties"]["description"],
+                    roles=[Role(**x) for x in guild_raw["roles"]],
+                    channels=[Channel(**x) for x in guild_raw["channels"]])
 
-    # SESSIONS_REPLACE event (after READY_SUPPLEMENTAL event)
-    elif event_type == "SESSIONS_REPLACE":
-        # data here is not very useful (yet)
-        pass
+                cls.user.known_guilds.append(guild)
 
-    # MESSAGE_CREATE
-    elif event_type == "MESSAGE_CREATE":
-        if Client.user.focus_channel and event_data["channel_id"] == Client.user.focus_channel.id:
+            await cls.on_ready()
+
+        # READY_SUPPLEMENTAL event (after READY event)
+        elif event_type == "READY_SUPPLEMENTAL":
+            # data here is not very useful (yet)
+            pass
+
+        # SESSIONS_REPLACE event (after READY_SUPPLEMENTAL event)
+        elif event_type == "SESSIONS_REPLACE":
+            # data here is not very useful (yet)
+            pass
+
+        # MESSAGE_CREATE
+        elif event_type == "MESSAGE_CREATE":
             message = Message.from_create_event(event_data)
-            Client.term.print_message(message)
+            await cls.on_message_create(message)
 
 
 async def process_user_input(user_input: list[str]):
@@ -342,7 +358,7 @@ async def process_user_input(user_input: list[str]):
 
         # exit cmd
         elif command[0] == "e" or command[0] == "exit":
-            await Client.sock.close()
+            await Client.close()
 
     # just a message
     else:

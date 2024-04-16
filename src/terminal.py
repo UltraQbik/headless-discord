@@ -6,6 +6,17 @@ from .types import Message
 from .formatting import *
 
 
+class CheckInit:
+    def __init__(self, func):
+        self.func = func
+
+    def __call__(self, *args, **kwargs):
+        # I have no idea how else to do it :<
+        cls = args[0]
+        if cls.initialized:
+            return self.func(*args, **kwargs)
+
+
 class TerminalMessage:
     """
     Message that the terminal prints
@@ -67,6 +78,7 @@ class Terminal:
             os.system("")
 
     @classmethod
+    @CheckInit
     async def start_listening(cls):
         """
         Start listening to user input
@@ -120,6 +132,7 @@ class Terminal:
         pass
 
     @classmethod
+    @CheckInit
     def _print(cls, value, flush=False):
         """
         Internal print method
@@ -130,6 +143,7 @@ class Terminal:
             cls._flush_buffer()
 
     @classmethod
+    @CheckInit
     def _flush_buffer(cls):
         """
         Flushes the print buffer
@@ -202,6 +216,7 @@ class Terminal:
         cls.user_cursor = max(0, min(len(cls.user_input), cls.user_cursor))
 
     @classmethod
+    @CheckInit
     def set_term_cursor(cls, x: int, y: int, flush=False):
         """
         Sets X and Y position for terminal cursor
@@ -210,6 +225,7 @@ class Terminal:
         cls._print(f"\33[{y};{x}H", flush=flush)
 
     @classmethod
+    @CheckInit
     def clear_terminal(cls):
         """
         Just clears the terminal
@@ -222,6 +238,7 @@ class Terminal:
         cls.line_ptr = 0
 
     @classmethod
+    @CheckInit
     def change_line(cls, offset):
         """
         Changes the line offset
@@ -234,6 +251,7 @@ class Terminal:
             cls.update_onscreen_lines()
 
     @classmethod
+    @CheckInit
     def update_lines(cls):
         """
         Updates content of every line with new messages
@@ -244,6 +262,7 @@ class Terminal:
             cls.lines += msg.lines()
 
     @classmethod
+    @CheckInit
     def update_onscreen_lines(cls):
         """
         Updates content of every terminal line (in message field)
@@ -270,6 +289,7 @@ class Terminal:
         cls._flush_buffer()
 
     @classmethod
+    @CheckInit
     def update_newest(cls):
         """
         Updates content for newly added lines (when they are visible)
@@ -308,6 +328,7 @@ class Terminal:
         cls._flush_buffer()
 
     @classmethod
+    @CheckInit
     def print(cls, value):
         """
         High level print method for the terminal
@@ -322,6 +343,7 @@ class Terminal:
         cls.update_newest()
 
     @classmethod
+    @CheckInit
     def log(cls, value):
         """
         High level print method, but adds [CLIENT] at the beginning
@@ -335,6 +357,7 @@ class Terminal:
         cls.print(string)
 
     @classmethod
+    @CheckInit
     def print_message(cls, message: Message):
         """
         High level print method for printing discord messages

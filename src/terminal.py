@@ -5,10 +5,6 @@ from sshkeyboard import listen_keyboard_manual
 from .types import Message
 from .formatting import *
 
-# initialize ANSI escape codes
-# without this, they don't work
-os.system("")
-
 
 class TerminalMessage:
     """
@@ -35,6 +31,9 @@ class Terminal:
     Terminal rendering class
     """
 
+    # was initialized?
+    initialized: bool = False
+
     # fetch terminals width and height (columns and lines)
     term_width: int = os.get_terminal_size().columns
     term_height: int = os.get_terminal_size().lines
@@ -53,6 +52,19 @@ class Terminal:
     input_callback = None
     user_input: list[str] = [" " for _ in range(term_width)]
     user_cursor: int = 0
+
+    @classmethod
+    def initialize_terminal(cls):
+        """
+        Initializes terminal class
+        """
+
+        if not cls.initialized:
+            # set to True
+            cls.initialized = True
+
+            # initialize ANSI escape codes
+            os.system("")
 
     @classmethod
     async def start_listening(cls):

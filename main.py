@@ -4,7 +4,7 @@ import asyncio
 from datetime import datetime
 
 from src import Client
-from src import Term
+from src import Terminal
 from src import format_message
 from src import Message
 
@@ -30,7 +30,7 @@ def main():
 
 
 def debug():
-    terminal = Term()
+    terminal = Terminal()
 
     async def while_true():
         while True:

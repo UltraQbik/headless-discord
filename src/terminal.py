@@ -20,7 +20,7 @@ class TerminalMessage:
         self.reference_message: Message | None = kwargs.get("reference_message")
 
     def __str__(self) -> str:
-        return character_wrap(self.content, Term.term_width)
+        return character_wrap(self.content, Terminal.term_width)
 
     def lines(self) -> list[str]:
         """
@@ -30,267 +30,287 @@ class TerminalMessage:
         return self.__str__().replace("\t", " "*4).split("\n")
 
 
-class Term:
+class Terminal:
     """
     Terminal rendering class
     """
 
+    # fetch terminals width and height (columns and lines)
     term_width: int = os.get_terminal_size().columns
     term_height: int = os.get_terminal_size().lines
 
+    # size of the messages field
     message_field: int = term_height - 2
 
-    def __init__(self):
-        # terminal stuff
-        self.messages: list[TerminalMessage] = []       # terminal rendered messages
-        self.print_buffer: str = ""                     # terminal buffer
-        self.lines: list[str] = []                      # terminal lines
-        self.line_offset: int = 0                       # offset to rendered lines
-        self.line_ptr: int = 0                          # current line
+    # terminal stuff
+    messages: list[TerminalMessage] = []       # terminal rendered messages
+    print_buffer: str = ""                     # terminal buffer
+    lines: list[str] = []                      # terminal lines
+    line_offset: int = 0                       # offset to rendered lines
+    line_ptr: int = 0                          # current line
 
-        # terminal user input
-        self.input_callback = None
-        self.user_input: list[str] = [" " for _ in range(self.term_width)]
-        self.user_cursor: int = 0
+    # terminal user input
+    input_callback = None
+    user_input: list[str] = [" " for _ in range(term_width)]
+    user_cursor: int = 0
 
-    async def start_listening(self):
+    @classmethod
+    async def start_listening(cls):
         """
         Start listening to user input
         """
 
         await listen_keyboard_manual(
-            on_press=self.key_press_callout, on_release=self.key_release_callout,
+            on_press=cls.key_press_callout, on_release=cls.key_release_callout,
             delay_second_char=0.05, lower=False
         )
 
-    async def key_press_callout(self, key: str):
+    @classmethod
+    async def key_press_callout(cls, key: str):
         """
         Callout message when any key is pressed
         """
 
         if key in printable:
-            self._insert_user_input(key)
+            cls._insert_user_input(key)
         elif key == "space":
-            self._insert_user_input(" ")
+            cls._insert_user_input(" ")
         elif key == "backspace":
-            self._pop_user_input()
+            cls._pop_user_input()
         elif key == "delete":
-            self._delete_user_input()
+            cls._delete_user_input()
         elif key == "enter":
-            await self.input_callback(self.user_input)
-            self._clear_user_input()
+            await cls.input_callback(cls.user_input)
+            cls._clear_user_input()
         elif key == "up":
-            self.change_line(-5)
+            cls.change_line(-5)
         elif key == "down":
-            self.change_line(5)
+            cls.change_line(5)
         elif key == "left":
-            self._move_user_cursor(-1)
-            self._update_user_input()
+            cls._move_user_cursor(-1)
+            cls._update_user_input()
         elif key == "right":
-            self._move_user_cursor(1)
-            self._update_user_input()
+            cls._move_user_cursor(1)
+            cls._update_user_input()
         elif key == "pageup":
-            self.change_line(-self.message_field)
+            cls.change_line(-cls.message_field)
         elif key == "pagedown":
-            self.change_line(self.message_field)
+            cls.change_line(cls.message_field)
         else:
-            self._insert_user_input(key)
+            cls._insert_user_input(key)
 
-    async def key_release_callout(self, key: str):
+    @classmethod
+    async def key_release_callout(cls, key: str):
         """
         Callout message when any key is released
         """
 
         pass
 
-    def _print(self, value, flush=False):
+    @classmethod
+    def _print(cls, value, flush=False):
         """
         Internal print method
         """
 
-        self.print_buffer += value.__str__()
+        cls.print_buffer += value.__str__()
         if flush:
-            self._flush_buffer()
+            cls._flush_buffer()
 
-    def _flush_buffer(self):
+    @classmethod
+    def _flush_buffer(cls):
         """
         Flushes the print buffer
         """
 
-        print(self.print_buffer, flush=True, end="")
-        self.print_buffer = ""
+        print(cls.print_buffer, flush=True, end="")
+        cls.print_buffer = ""
 
-    def _update_user_input(self):
+    @classmethod
+    def _update_user_input(cls):
         """
         Updates user input
         """
 
-        self._print(f"\33[{self.message_field+2};0H", False)
-        to_print = TERM_INPUT_FIELD + "".join(self.user_input[:self.user_cursor])
-        to_print += TERM_CURSOR + self.user_input[self.user_cursor] + TERM_INPUT_FIELD
-        to_print += "".join(self.user_input[self.user_cursor+1:]) + CS_RESET
-        self._print("".join(to_print), True)
+        cls._print(f"\33[{cls.message_field + 2};0H", False)
+        to_print = TERM_INPUT_FIELD + "".join(cls.user_input[:cls.user_cursor])
+        to_print += TERM_CURSOR + cls.user_input[cls.user_cursor] + TERM_INPUT_FIELD
+        to_print += "".join(cls.user_input[cls.user_cursor + 1:]) + CS_RESET
+        cls._print("".join(to_print), True)
 
-    def _insert_user_input(self, key: str):
+    @classmethod
+    def _insert_user_input(cls, key: str):
         """
         Inserts a character at user cursor
         """
 
-        self.user_input.insert(self.user_cursor, key)
-        self.user_input.pop()
-        self._move_user_cursor(1)
-        self._update_user_input()
+        cls.user_input.insert(cls.user_cursor, key)
+        cls.user_input.pop()
+        cls._move_user_cursor(1)
+        cls._update_user_input()
 
-    def _pop_user_input(self):
+    @classmethod
+    def _pop_user_input(cls):
         """
         Removes a character at user cursor
         """
 
-        self.user_input.pop(self.user_cursor-1)
-        self._move_user_cursor(-1)
-        self.user_input.append(" ")
-        self._update_user_input()
+        cls.user_input.pop(cls.user_cursor - 1)
+        cls._move_user_cursor(-1)
+        cls.user_input.append(" ")
+        cls._update_user_input()
 
-    def _delete_user_input(self):
+    @classmethod
+    def _delete_user_input(cls):
         """
         `delete` key functionality
         """
 
-        self.user_input.pop(self.user_cursor)
-        self.user_input.append(" ")
-        self._update_user_input()
+        cls.user_input.pop(cls.user_cursor)
+        cls.user_input.append(" ")
+        cls._update_user_input()
 
-    def _clear_user_input(self):
+    @classmethod
+    def _clear_user_input(cls):
         """
         Clears the user input
         """
 
-        self.user_input = [" " for _ in range(self.term_width)]
-        self.user_cursor = 0
-        self._update_user_input()
+        cls.user_input = [" " for _ in range(cls.term_width)]
+        cls.user_cursor = 0
+        cls._update_user_input()
 
-    def _move_user_cursor(self, offset: int):
+    @classmethod
+    def _move_user_cursor(cls, offset: int):
         """
         Moves user cursor
         """
 
-        self.user_cursor += offset
-        self.user_cursor = max(0, min(len(self.user_input), self.user_cursor))
+        cls.user_cursor += offset
+        cls.user_cursor = max(0, min(len(cls.user_input), cls.user_cursor))
 
-    def set_term_cursor(self, x: int, y: int, flush=False):
+    @classmethod
+    def set_term_cursor(cls, x: int, y: int, flush=False):
         """
         Sets X and Y position for terminal cursor
         """
 
-        self._print(f"\33[{y};{x}H", flush=flush)
+        cls._print(f"\33[{y};{x}H", flush=flush)
 
-    def clear_terminal(self):
+    @classmethod
+    def clear_terminal(cls):
         """
         Just clears the terminal
         """
 
         os.system("cls" if os.name == "nt" else "clear")
-        self.set_term_cursor(0, self.message_field+1)
-        self._print(f"{TERM_INPUT_FIELD}{'='*self.term_width}\n"
-                    f"{TERM_INPUT_FIELD}{' '*self.term_width}{CS_RESET}", True)
-        self.line_ptr = 0
+        cls.set_term_cursor(0, cls.message_field + 1)
+        cls._print(f"{TERM_INPUT_FIELD}{'=' * cls.term_width}\n"
+                    f"{TERM_INPUT_FIELD}{' ' * cls.term_width}{CS_RESET}", True)
+        cls.line_ptr = 0
 
-    def change_line(self, offset):
+    @classmethod
+    def change_line(cls, offset):
         """
         Changes the line offset
         """
 
-        old = self.line_offset
-        self.line_offset += offset
-        self.line_offset = max(0, min(len(self.lines)-6, self.line_offset))
-        if self.line_offset != old:
-            self.update_onscreen_lines()
+        old = cls.line_offset
+        cls.line_offset += offset
+        cls.line_offset = max(0, min(len(cls.lines) - 6, cls.line_offset))
+        if cls.line_offset != old:
+            cls.update_onscreen_lines()
 
-    def update_lines(self):
+    @classmethod
+    def update_lines(cls):
         """
         Updates content of every line with new messages
         """
 
-        self.lines.clear()
-        for msg in self.messages:
-            self.lines += msg.lines()
+        cls.lines.clear()
+        for msg in cls.messages:
+            cls.lines += msg.lines()
 
-    def update_onscreen_lines(self):
+    @classmethod
+    def update_onscreen_lines(cls):
         """
         Updates content of every terminal line (in message field)
         """
 
         # move cursor home (0, 0)
-        self._print("\33[H")
+        cls._print("\33[H")
 
         # calculate start and end
-        start = self.line_offset
-        end = min(len(self.lines), start + self.message_field)
+        start = cls.line_offset
+        end = min(len(cls.lines), start + cls.message_field)
 
         # calculate line pointer
-        self.line_ptr = end - self.line_offset
+        cls.line_ptr = end - cls.line_offset
 
         # print lines
-        for line in self.lines[start:end]:
-            self._print(f"{line}\33[0K\n")
+        for line in cls.lines[start:end]:
+            cls._print(f"{line}\33[0K\n")
 
         # deal with empty lines
-        self._print("\33[0K\n" * (self.message_field - self.line_ptr))
+        cls._print("\33[0K\n" * (cls.message_field - cls.line_ptr))
 
         # flush the print buffer
-        self._flush_buffer()
+        cls._flush_buffer()
 
-    def update_newest(self):
+    @classmethod
+    def update_newest(cls):
         """
         Updates content for newly added lines (when they are visible)
         """
 
         # check line pointer (if it exceeds the message field => return)
-        if self.line_ptr > self.message_field:
+        if cls.line_ptr > cls.message_field:
             return
 
         # move cursor to correct line
-        self.set_term_cursor(0, self.line_ptr+1)
+        cls.set_term_cursor(0, cls.line_ptr + 1)
 
         # calculate start and end
-        start = self.line_offset + self.line_ptr
-        end = min(len(self.lines), start + self.message_field)
+        start = cls.line_offset + cls.line_ptr
+        end = min(len(cls.lines), start + cls.message_field)
 
         # prevent message field overflows
-        if end - self.line_offset > self.message_field:
-            end = start + self.message_field - self.line_ptr
+        if end - cls.line_offset > cls.message_field:
+            end = start + cls.message_field - cls.line_ptr
 
         # if there is nothing to print => return
         if end - start == 0:
             return
 
         # print lines
-        for line in self.lines[start:end]:
-            self._print(f"{line}\33[0K\n")
+        for line in cls.lines[start:end]:
+            cls._print(f"{line}\33[0K\n")
 
         # deal with empty lines
-        self._print("\33[0K\n" * (self.message_field - self.line_ptr - 1))
+        cls._print("\33[0K\n" * (cls.message_field - cls.line_ptr - 1))
 
         # update line pointer
-        self.line_ptr += end - start
+        cls.line_ptr += end - start
 
         # flush the print buffer
-        self._flush_buffer()
+        cls._flush_buffer()
 
-    def print(self, value):
+    @classmethod
+    def print(cls, value):
         """
         High level print method for the terminal
         """
 
         # append new message
         message = TerminalMessage(content=value.__str__())
-        self.messages.append(message)
-        self.lines += message.lines()
+        cls.messages.append(message)
+        cls.lines += message.lines()
 
         # print out newest lines
-        self.update_newest()
+        cls.update_newest()
 
-    def log(self, value):
+    @classmethod
+    def log(cls, value):
         """
         High level print method, but adds [CLIENT] at the beginning
         """
@@ -300,17 +320,18 @@ class Term:
         string = f"{CLIENT_COL[0]}[CLIENT]{CLIENT_COL[2]} {string}{CS_RESET}"
 
         # print it out
-        self.print(string)
+        cls.print(string)
 
-    def print_message(self, message: Message):
+    @classmethod
+    def print_message(cls, message: Message):
         """
         High level print method for printing discord messages
         """
 
         # append new message
         message = TerminalMessage(content=message.content, reference_message=message)
-        self.messages.append(message)
-        self.lines += message.lines()
+        cls.messages.append(message)
+        cls.lines += message.lines()
 
         # print out newest lines
-        self.update_newest()
+        cls.update_newest()

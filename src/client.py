@@ -5,7 +5,7 @@ import websockets
 from typing import Any
 from random import random
 from .types import *
-from .terminal import Term
+from .terminal import Terminal
 
 
 class Client:
@@ -20,9 +20,6 @@ class Client:
     # keep alive
     _heartbeat_interval: int = 41250
     _sequence: int | None = None
-
-    # terminal
-    term: Term = Term()
 
     # discord
     user: ClientUser | None = None
@@ -69,7 +66,7 @@ class Client:
             async with websockets.connect(GATEWAY) as websock:
                 cls._sock = websock
                 cls._heartbeat_interval = (await cls.get_request())['d']['heartbeat_interval']
-                cls.term.log("connection successful")
+                Terminal.log("connection successful")
                 await cls.send_request(
                     {
                         "op": 2,
@@ -96,16 +93,16 @@ class Client:
                         }
                     }
                 )
-                cls.term.log("authentication successful")
-                cls.term.input_callback = process_user_input
+                Terminal.log("authentication successful")
+                Terminal.input_callback = process_user_input
                 await asyncio.gather(
                     cls._keep_alive(),
                     cls._event_handle(),
-                    cls.term.start_listening()
+                    Terminal.start_listening()
                 )
         cls._auth = token
-        cls.term.clear_terminal()
-        cls.term.log("attempting connection")
+        Terminal.clear_terminal()
+        Terminal.log("attempting connection")
         try:
             asyncio.run(coro())
         except KeyboardInterrupt:
@@ -113,8 +110,8 @@ class Client:
         except websockets.exceptions.ConnectionClosedOK:
             pass
         except OSError:
-            cls.term.log("connection failed")
-        cls.term.log("connection closed")
+            Terminal.log("connection failed")
+        Terminal.log("connection closed")
 
     @classmethod
     async def _event_handle(cls):
@@ -165,7 +162,7 @@ class Client:
         Stuff that will happen after the READY event was processed
         """
 
-        cls.term.log("ready!")
+        Terminal.log("ready!")
 
     @classmethod
     async def on_message_create(cls, message: Message):
@@ -174,7 +171,7 @@ class Client:
         """
 
         if cls.user.focus_channel and message.channel.id == cls.user.focus_channel.id:
-            cls.term.print_message(message)
+            Terminal.print_message(message)
 
     @classmethod
     async def _process_event(cls, event):
@@ -259,12 +256,12 @@ async def process_user_input(user_input: list[str]):
 
         # help cmd
         if command[0] == "help":
-            Client.term.log("list of commands")
+            Terminal.log("list of commands")
             for cmd in CLIENT_HELP:
                 aliases = f" {CLIENT_COL[2]}or{CLIENT_COL[3]} ".join(cmd['cmd'])
                 aliases += " " if cmd['args'] else ""
                 args = f" ".join(cmd['args'])
-                Client.term.log(
+                Terminal.log(
                     f"\t{CLIENT_COL[3]}{aliases}{CLIENT_COL[2]}"
                     f"{STYLE_ITALICS}{args}{CS_RESET}"
                     f"{CLIENT_COL[2]} - {cmd['text']}"
@@ -272,15 +269,15 @@ async def process_user_input(user_input: list[str]):
 
         # list guilds cmd
         elif command[0] == "lg" or command[0] == "list_g":
-            Client.term.log("list of guilds")
+            Terminal.log("list of guilds")
             for idx, guild in enumerate(Client.user.known_guilds):
-                Client.term.log(f"\t[{idx}] {guild.name}")
+                Terminal.log(f"\t[{idx}] {guild.name}")
 
         # list channels cmd
         elif command[0] == "lc" or command[0] == "list_c":
             # check amount of arguments
             if len(command) < 2:
-                Client.term.log(f"please enter the {STYLE_BOLD}guild{CS_RESET} field")
+                Terminal.log(f"please enter the {STYLE_BOLD}guild{CS_RESET} field")
                 return
 
             # check index
@@ -289,29 +286,29 @@ async def process_user_input(user_input: list[str]):
                 if index > len(Client.user.known_guilds) or index < 0:
                     raise ValueError
             except ValueError:
-                Client.term.log(f"incorrect guild index")
+                Terminal.log(f"incorrect guild index")
                 return
 
-            Client.term.log(f"list of channels for [{index}]")
+            Terminal.log(f"list of channels for [{index}]")
             count = 0
             for channel in Client.user.known_guilds[index].channels:
                 if channel.type != ChannelType.GUILD_CATEGORY:
-                    Client.term.log(f"\t[{count}] {channel.name}")
+                    Terminal.log(f"\t[{count}] {channel.name}")
                     count += 1
                 else:
-                    Client.term.log(f"\t[+] {channel.name}")
+                    Terminal.log(f"\t[+] {channel.name}")
 
         # list private channels cmd
         elif command[0] == "lpc" or command[0] == "list_pc":
-            Client.term.log("list of private channels")
+            Terminal.log("list of private channels")
             for idx, channel in enumerate(Client.user.private_channels):
-                Client.term.log(f"\t[{idx}] {channel.recipients[0].username}")
+                Terminal.log(f"\t[{idx}] {channel.recipients[0].username}")
 
         # pick channel cmd
         elif command[0] == "pc" or command[0] == "pick_c":
             # check amount of arguments
             if len(command) < 2:
-                Client.term.log(f"use {STYLE_BOLD}//help{CS_RESET} to check command syntax")
+                Terminal.log(f"use {STYLE_BOLD}//help{CS_RESET} to check command syntax")
                 return
 
             # private channels
@@ -322,11 +319,11 @@ async def process_user_input(user_input: list[str]):
                     if channel_idx > len(Client.user.private_channels) or channel_idx < 0:
                         raise ValueError
                 except ValueError:
-                    Client.term.log(f"incorrect channel index")
+                    Terminal.log(f"incorrect channel index")
                     return
 
                 Client.user.focus_channel = Client.user.private_channels[channel_idx]
-                Client.term.log(f"now chatting with {Client.user.focus_channel.recipients[0].username}")
+                Terminal.log(f"now chatting with {Client.user.focus_channel.recipients[0].username}")
 
             # guild channels
             else:
@@ -336,7 +333,7 @@ async def process_user_input(user_input: list[str]):
                     if guild_idx > len(Client.user.known_guilds) or guild_idx < 0:
                         raise ValueError
                 except ValueError:
-                    Client.term.log(f"incorrect guild index")
+                    Terminal.log(f"incorrect guild index")
                     return
                 # check channel index
                 try:
@@ -350,11 +347,11 @@ async def process_user_input(user_input: list[str]):
                     else:
                         raise ValueError
                 except ValueError:
-                    Client.term.log(f"incorrect channel index")
+                    Terminal.log(f"incorrect channel index")
                     return
 
                 Client.user.focus_channel = channel
-                Client.term.log(f"now focused on {Client.user.focus_channel.name}")
+                Terminal.log(f"now focused on {Client.user.focus_channel.name}")
 
         # exit cmd
         elif command[0] == "e" or command[0] == "exit":
@@ -367,5 +364,5 @@ async def process_user_input(user_input: list[str]):
                 url=f"{API}/channels/{Client.user.focus_channel.id}/messages",
                 json={"content": string})
         else:
-            Client.term.log(
+            Terminal.log(
                 f"please pick a channel first. Use {CLIENT_COL[3]}//help{CLIENT_COL[2]} to see all commands")

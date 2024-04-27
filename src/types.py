@@ -396,6 +396,12 @@ class ClientUser(User):
         Returns a channel by ID. None if that channel doesn't exist
         """
 
+        # check private channels
+        for channel in cls.private_channels:
+            if channel.id == cid:
+                return channel
+
+        # check guild channels
         for guild in cls.known_guilds:
             for channel in guild.channels:
                 if channel.id == cid:

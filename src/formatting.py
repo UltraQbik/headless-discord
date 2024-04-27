@@ -1,6 +1,6 @@
 import re
 from .constants import *
-from .types import Message
+from .types import Message, User, Member
 
 
 def character_wrap(string: str, width=120) -> str:
@@ -52,12 +52,10 @@ def format_message(message: Message) -> str:
     """
 
     timestamp = message.timestamp.strftime("%H:%M:%S")
-    if message.author.nick is None and message.author.username is None:
-        nickname = message.author.global_name
-    elif message.author.nick is None:
+    if isinstance(message.author, User):
         nickname = message.author.username
     else:
-        nickname = message.author.global_name
+        nickname = message.author.nick
 
     content = message.content
 

@@ -1,5 +1,6 @@
 import re
 from .constants import *
+from .types import Message
 
 
 def character_wrap(string: str, width=120) -> str:
@@ -45,13 +46,18 @@ def apply_style(content: str, brackets: str, style: str):
     return content
 
 
-def format_message(message) -> str:
+def format_message(message: Message) -> str:
     """
     Returns terminal formatted message
     """
 
     timestamp = message.timestamp.strftime("%H:%M:%S")
-    nickname = message.author.nickname
+    if message.author.nick is None and message.author.username is None:
+        nickname = message.author.global_name
+    elif message.author.nick is None:
+        nickname = message.author.username
+    else:
+        nickname = message.author.global_name
 
     content = message.content
 

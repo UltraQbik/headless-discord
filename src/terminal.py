@@ -328,7 +328,7 @@ class Terminal:
         """
 
         # append new message
-        message = TerminalMessage(content=message.content, reference_message=message)
+        message = TerminalMessage(content=format_message(message), reference_message=message)
         cls.messages.append(message)
         cls.lines += message.lines()
 

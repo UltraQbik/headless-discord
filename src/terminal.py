@@ -46,7 +46,6 @@ class Terminal:
     print_buffer: str = ""                     # terminal buffer
     lines: list[str] = []                      # terminal lines
     line_offset: int = 0                       # offset to rendered lines
-    line_ptr: int = 0                          # current line
 
     # terminal user input
     input_callback = None
@@ -243,53 +242,12 @@ class Terminal:
         start = cls.line_offset
         end = min(len(cls.lines), start + cls.message_field)
 
-        # calculate line pointer
-        cls.line_ptr = end - cls.line_offset
-
         # print lines
         for line in cls.lines[start:end]:
             cls._print(f"{line}\33[0K\n")
 
         # deal with empty lines
-        cls._print("\33[0K\n" * (cls.message_field - cls.line_ptr))
-
-        # flush the print buffer
-        cls._flush_buffer()
-
-    @classmethod
-    def update_newest(cls):
-        """
-        Updates content for newly added lines (when they are visible)
-        """
-
-        # check line pointer (if it exceeds the message field => return)
-        if cls.line_ptr > cls.message_field:
-            return
-
-        # move cursor to correct line
-        cls.set_term_cursor(0, cls.line_ptr + 1)
-
-        # calculate start and end
-        start = cls.line_offset + cls.line_ptr
-        end = min(len(cls.lines), start + cls.message_field)
-
-        # prevent message field overflows
-        if end - cls.line_offset > cls.message_field:
-            end = start + cls.message_field - cls.line_ptr
-
-        # if there is nothing to print => return
-        if end - start == 0:
-            return
-
-        # print lines
-        for line in cls.lines[start:end]:
-            cls._print(f"{line}\33[0K\n")
-
-        # deal with empty lines
-        cls._print("\33[0K\n" * (cls.message_field - cls.line_ptr - 1))
-
-        # update line pointer
-        cls.line_ptr += end - start
+        cls._print("\33[0K\n" * (cls.message_field - (end - start)))
 
         # flush the print buffer
         cls._flush_buffer()
@@ -306,7 +264,7 @@ class Terminal:
         cls.lines += message.lines()
 
         # print out newest lines
-        cls.update_newest()
+        cls.update_onscreen_lines()
 
     @classmethod
     def log(cls, value):
@@ -333,4 +291,4 @@ class Terminal:
         cls.lines += message.lines()
 
         # print out newest lines
-        cls.update_newest()
+        cls.update_onscreen_lines()
